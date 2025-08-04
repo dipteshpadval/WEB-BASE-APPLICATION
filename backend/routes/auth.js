@@ -1,14 +1,61 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { supabase } = require('../config/database');
-const { authenticateToken } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
 
-// Login
-router.post('/login', [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 6 })
+// File path for storing users
+const USERS_FILE = path.join(__dirname, '../data/users.json');
+
+// Ensure data directory exists
+const dataDir = path.dirname(USERS_FILE);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Initialize users file with admin user if it doesn't exist
+if (!fs.existsSync(USERS_FILE)) {
+  const adminUser = {
+    employeeCode: 'admin',
+    password: '12345678',
+    name: 'Administrator',
+    mobile: '1234567890',
+    role: 'admin',
+    status: 'active',
+    createdAt: new Date().toISOString()
+  };
+  fs.writeFileSync(USERS_FILE, JSON.stringify([adminUser], null, 2));
+  console.log('✅ Admin user created');
+}
+
+// Helper function to read users
+function readUsers() {
+  try {
+    const data = fs.readFileSync(USERS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading users file:', error);
+    return [];
+  }
+}
+
+// Helper function to write users
+function writeUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing users file:', error);
+    return false;
+  }
+}
+
+// Register new user
+router.post('/register', [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('mobile').notEmpty().withMessage('Mobile number is required'),
+  body('employeeCode').notEmpty().withMessage('Employee code is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -16,36 +63,84 @@ router.post('/login', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { name, mobile, employeeCode } = req.body;
+    const users = readUsers();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      return res.status(401).json({ error: error.message });
+    // Check if user already exists
+    const existingUser = users.find(user => user.employeeCode === employeeCode);
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this employee code already exists' });
     }
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+    // Create new user (pending approval)
+    const newUser = {
+      employeeCode,
+      name,
+      mobile,
+      role: 'user',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
 
-    if (profileError) {
-      return res.status(500).json({ error: 'Error fetching user profile' });
+    users.push(newUser);
+    
+    if (writeUsers(users)) {
+      res.status(201).json({
+        message: 'Registration successful. Please wait for admin approval.',
+        user: {
+          employeeCode: newUser.employeeCode,
+          name: newUser.name,
+          status: newUser.status
+        }
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to save user data' });
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+// Login
+router.post('/login', [
+  body('employeeCode').notEmpty().withMessage('Employee code is required'),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { employeeCode, password } = req.body;
+    const users = readUsers();
+
+    // Find user
+    const user = users.find(u => u.employeeCode === employeeCode);
+    
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Check password for existing users
+    if (user.password && user.password !== password) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // Check if user is approved
+    if (user.status !== 'active') {
+      return res.status(401).json({ error: 'Account is not approved. Please contact administrator.' });
     }
 
     res.json({
       user: {
-        id: data.user.id,
-        email: data.user.email,
-        role: profile.role || 'viewer'
+        employeeCode: user.employeeCode,
+        name: user.name,
+        role: user.role,
+        status: user.status
       },
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token
+      message: 'Login successful'
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -53,126 +148,142 @@ router.post('/login', [
   }
 });
 
-// Register (Admin only)
-router.post('/register', [
-  body('email').isEmail().normalizeEmail(),
-  body('password').isLength({ min: 6 }),
-  body('role').isIn(['admin', 'uploader', 'viewer'])
-], async (req, res) => {
+// Get all users (Admin only)
+router.get('/users', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { email, password, role } = req.body;
-
-    // Create user in Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password
-    });
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
-    // Create user profile in database
-    const { error: profileError } = await supabase
-      .from('users')
-      .insert([
-        {
-          id: data.user.id,
-          email: email,
-          role: role,
-          created_at: new Date().toISOString()
-        }
-      ]);
-
-    if (profileError) {
-      return res.status(500).json({ error: 'Error creating user profile' });
-    }
-
-    res.status(201).json({
-      message: 'User created successfully',
-      user: {
-        id: data.user.id,
-        email: email,
-        role: role
-      }
-    });
+    const users = readUsers();
+    res.json({ users });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
-// Logout
-router.post('/logout', authenticateToken, async (req, res) => {
+// Approve user (Admin only)
+router.post('/approve/:employeeCode', async (req, res) => {
   try {
-    const { error } = await supabase.auth.signOut();
+    const { employeeCode } = req.params;
+    const users = readUsers();
     
-    if (error) {
-      return res.status(500).json({ error: error.message });
+    const userIndex = users.findIndex(u => u.employeeCode === employeeCode);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ message: 'Logged out successfully' });
+    users[userIndex].status = 'active';
+    
+    if (writeUsers(users)) {
+      res.json({ 
+        message: 'User approved successfully',
+        user: users[userIndex]
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update user' });
+    }
   } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({ error: 'Logout failed' });
+    console.error('Approve user error:', error);
+    res.status(500).json({ error: 'Failed to approve user' });
   }
 });
 
-// Get current user
-router.get('/me', authenticateToken, async (req, res) => {
+// Reject user (Admin only)
+router.post('/reject/:employeeCode', async (req, res) => {
   try {
-    const { data: profile, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', req.user.id)
-      .single();
-
-    if (error) {
-      return res.status(500).json({ error: 'Error fetching user profile' });
+    const { employeeCode } = req.params;
+    const users = readUsers();
+    
+    const userIndex = users.findIndex(u => u.employeeCode === employeeCode);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({
-      user: {
-        id: req.user.id,
-        email: req.user.email,
-        role: profile.role
-      }
-    });
+    users[userIndex].status = 'rejected';
+    
+    if (writeUsers(users)) {
+      res.json({ 
+        message: 'User rejected successfully',
+        user: users[userIndex]
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update user' });
+    }
   } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ error: 'Failed to get user info' });
+    console.error('Reject user error:', error);
+    res.status(500).json({ error: 'Failed to reject user' });
   }
 });
 
-// Refresh token
-router.post('/refresh', async (req, res) => {
+// Terminate user (Admin only)
+router.post('/terminate/:employeeCode', async (req, res) => {
   try {
-    const { refresh_token } = req.body;
-
-    if (!refresh_token) {
-      return res.status(400).json({ error: 'Refresh token required' });
+    const { employeeCode } = req.params;
+    const users = readUsers();
+    
+    const userIndex = users.findIndex(u => u.employeeCode === employeeCode);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    const { data, error } = await supabase.auth.refreshSession({
-      refresh_token
-    });
-
-    if (error) {
-      return res.status(401).json({ error: error.message });
+    users[userIndex].status = 'terminated';
+    
+    if (writeUsers(users)) {
+      res.json({ 
+        message: 'User terminated successfully',
+        user: users[userIndex]
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update user' });
     }
-
-    res.json({
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token
-    });
   } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(500).json({ error: 'Token refresh failed' });
+    console.error('Terminate user error:', error);
+    res.status(500).json({ error: 'Failed to terminate user' });
+  }
+});
+
+// Activate user (Admin only)
+router.post('/activate/:employeeCode', async (req, res) => {
+  try {
+    const { employeeCode } = req.params;
+    const users = readUsers();
+    
+    const userIndex = users.findIndex(u => u.employeeCode === employeeCode);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    users[userIndex].status = 'active';
+    
+    if (writeUsers(users)) {
+      res.json({ 
+        message: 'User activated successfully',
+        user: users[userIndex]
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update user' });
+    }
+  } catch (error) {
+    console.error('Activate user error:', error);
+    res.status(500).json({ error: 'Failed to activate user' });
+  }
+});
+
+// Get system stats
+router.get('/stats', async (req, res) => {
+  try {
+    const users = readUsers();
+    
+    const stats = {
+      totalUsers: users.length,
+      activeUsers: users.filter(u => u.status === 'active').length,
+      pendingUsers: users.filter(u => u.status === 'pending').length,
+      terminatedUsers: users.filter(u => u.status === 'terminated').length,
+      adminUsers: users.filter(u => u.role === 'admin').length
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
   }
 });
 

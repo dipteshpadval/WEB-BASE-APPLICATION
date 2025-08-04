@@ -67,6 +67,15 @@ export interface FileListResponse {
   limit: number
 }
 
+export interface User {
+  employeeCode: string
+  name: string
+  mobile: string
+  role: string
+  status: string
+  createdAt: string
+}
+
 export const filesAPI = {
   getStats: async (): Promise<FileStats> => {
     const response = await api.get('/files/stats')
@@ -107,17 +116,43 @@ export const filesAPI = {
 }
 
 export const authAPI = {
-  login: async (email: string, password: string): Promise<{ token: string; user: any }> => {
-    const response = await api.post('/auth/login', { email, password })
+  login: async (employeeCode: string, password: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post('/auth/login', { employeeCode, password })
     return response.data
   },
 
-  register: async (email: string, password: string, name: string): Promise<{ token: string; user: any }> => {
-    const response = await api.post('/auth/register', { email, password, name })
+  register: async (name: string, mobile: string, employeeCode: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post('/auth/register', { name, mobile, employeeCode })
     return response.data
   },
 
-  logout: async (): Promise<void> => {
-    await api.post('/auth/logout')
+  getUsers: async (): Promise<{ users: User[] }> => {
+    const response = await api.get('/auth/users')
+    return response.data
+  },
+
+  approveUser: async (employeeCode: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post(`/auth/approve/${employeeCode}`)
+    return response.data
+  },
+
+  rejectUser: async (employeeCode: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post(`/auth/reject/${employeeCode}`)
+    return response.data
+  },
+
+  terminateUser: async (employeeCode: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post(`/auth/terminate/${employeeCode}`)
+    return response.data
+  },
+
+  activateUser: async (employeeCode: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post(`/auth/activate/${employeeCode}`)
+    return response.data
+  },
+
+  getStats: async (): Promise<{ totalUsers: number; activeUsers: number; pendingUsers: number; terminatedUsers: number; adminUsers: number }> => {
+    const response = await api.get('/auth/stats')
+    return response.data
   },
 } 

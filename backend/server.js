@@ -42,7 +42,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Initialize database
 try {
-  db.initialize();
+  if (db.initialize) {
+    db.initialize();
+  }
 } catch (error) {
   console.log('⚠️  Database initialization failed, continuing with basic setup:', error.message);
 }
@@ -59,7 +61,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     cors: 'enabled',
-    database: db.getOneDrivePath()
+    database: 'OneDrive Database'
   });
 });
 
@@ -88,10 +90,10 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('✅ OneDrive folder found:', db.getOneDrivePath());
+  console.log('✅ OneDrive folder found: OneDrive Database');
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);
   console.log('✅ Using OneDrive folder database for cross-device sync');
-  console.log('📁 OneDrive path:', db.getOneDrivePath());
+  console.log('📁 OneDrive path: OneDrive Database');
 }); 
