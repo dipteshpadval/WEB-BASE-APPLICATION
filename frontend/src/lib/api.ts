@@ -121,8 +121,8 @@ export const authAPI = {
     return response.data
   },
 
-  register: async (name: string, mobile: string, employeeCode: string): Promise<{ user: User; message: string }> => {
-    const response = await api.post('/auth/register', { name, mobile, employeeCode })
+  register: async (name: string, mobile: string, employeeCode: string, password: string): Promise<{ user: User; message: string }> => {
+    const response = await api.post('/auth/register', { name, mobile, employeeCode, password })
     return response.data
   },
 

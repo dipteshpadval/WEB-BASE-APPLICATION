@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | null
   isAdmin: boolean
   isAuthenticated: boolean
-  register: (userData: { name: string; mobile: string; employeeCode: string }) => Promise<void>
+  register: (userData: { name: string; mobile: string; employeeCode: string; password: string }) => Promise<void>
   login: (employeeCode: string, password: string) => Promise<void>
   logout: () => void
   isLoading: boolean
@@ -51,10 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const register = async (userData: { name: string; mobile: string; employeeCode: string }) => {
+  const register = async (userData: { name: string; mobile: string; employeeCode: string; password: string }) => {
     setIsLoading(true)
     try {
-      const response = await authAPI.register(userData.name, userData.mobile, userData.employeeCode)
+      const response = await authAPI.register(userData.name, userData.mobile, userData.employeeCode, userData.password)
       toast.success(response.message)
     } catch (error: any) {
       console.error('Registration error:', error)

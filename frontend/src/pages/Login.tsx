@@ -22,7 +22,8 @@ export default function Login() {
   const [registerData, setRegisterData] = useState({
     name: '',
     mobile: '',
-    employeeCode: ''
+    employeeCode: '',
+    password: '', // Add password field
   })
 
   // Debug logging
@@ -112,7 +113,7 @@ export default function Login() {
       await register(registerData)
       toast.success('Registration successful! Please wait for admin approval.')
       setActiveTab('login')
-      setRegisterData({ name: '', mobile: '', employeeCode: '' })
+      setRegisterData({ name: '', mobile: '', employeeCode: '', password: '' })
     } catch (error: any) {
       console.error('❌ Registration error:', error)
       toast.error(error.message || 'Registration failed')
@@ -355,6 +356,41 @@ export default function Login() {
                 </div>
                 {errors.employeeCode && (
                   <p className="mt-2 text-sm text-red-400">{errors.employeeCode}</p>
+                )}
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-white/50" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={registerData.password}
+                    onChange={(e) => handleInputChange('register', 'password', e.target.value)}
+                    className={`w-full pl-10 pr-12 py-3 bg-white/10 border rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm ${
+                      errors.password ? 'border-red-500' : 'border-white/20'
+                    }`}
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-white/50 hover:text-white/80" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-white/50 hover:text-white/80" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="mt-2 text-sm text-red-400">{errors.password}</p>
                 )}
               </div>
 

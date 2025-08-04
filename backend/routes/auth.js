@@ -55,7 +55,8 @@ function writeUsers(users) {
 router.post('/register', [
   body('name').notEmpty().withMessage('Name is required'),
   body('mobile').notEmpty().withMessage('Mobile number is required'),
-  body('employeeCode').notEmpty().withMessage('Employee code is required')
+  body('employeeCode').notEmpty().withMessage('Employee code is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -63,7 +64,7 @@ router.post('/register', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, mobile, employeeCode } = req.body;
+    const { name, mobile, employeeCode, password } = req.body;
     const users = readUsers();
 
     // Check if user already exists
@@ -72,9 +73,10 @@ router.post('/register', [
       return res.status(400).json({ error: 'User with this employee code already exists' });
     }
 
-    // Create new user (pending approval)
+    // Create new user (pending approval) with password
     const newUser = {
       employeeCode,
+      password, // Store the password
       name,
       mobile,
       role: 'user',
