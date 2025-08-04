@@ -76,17 +76,51 @@ export default function Admin() {
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Check if user is admin, if not show login
+  // Check if user is admin, if not show login immediately
   useEffect(() => {
-    if (!isAdmin && user) {
+    if (!isAdmin) {
       setShowAdminLogin(true)
     }
-  }, [isAdmin, user])
+  }, [isAdmin])
 
-  // Fetch system stats
+  // Fetch system stats from real API
   const { data: systemStats, isLoading: statsLoading } = useQuery(
     ['systemStats'],
-    getSystemStats,
+    async () => {
+      try {
+        const response = await fetch('https://web-base-application.onrender.com/api/files/stats')
+        if (!response.ok) {
+          throw new Error('Failed to fetch stats')
+        }
+        const stats = await response.json()
+        
+        // Get users for real user count
+        const users = await getUsers()
+        
+        return {
+          totalUsers: users.length,
+          activeUsers: users.filter(u => u.isActive).length,
+          totalFiles: stats.total_files || 0,
+          totalStorage: stats.total_storage || '0 MB',
+          fileTypeStats: stats.file_type_stats || {},
+          clientCodeStats: stats.client_code_stats || {},
+          assetTypeStats: stats.asset_type_stats || {}
+        }
+      } catch (error) {
+        console.error('Error fetching system stats:', error)
+        // Return fallback stats
+        const users = await getUsers()
+        return {
+          totalUsers: users.length,
+          activeUsers: users.filter(u => u.isActive).length,
+          totalFiles: 0,
+          totalStorage: '0 MB',
+          fileTypeStats: {},
+          clientCodeStats: {},
+          assetTypeStats: {}
+        }
+      }
+    },
     {
       enabled: isAdmin,
       refetchInterval: 30000, // Refetch every 30 seconds

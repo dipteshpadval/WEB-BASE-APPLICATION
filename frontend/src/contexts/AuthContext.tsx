@@ -34,15 +34,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Check if user is admin
-  const isAdmin = user?.role === 'admin'
+  // Check if user is admin - only true if explicitly logged in as admin
+  const isAdmin = user?.role === 'admin' && user?.id === 'admin'
 
   // Load user from localStorage on mount
   useEffect(() => {
     const savedUser = localStorage.getItem('user')
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const parsedUser = JSON.parse(savedUser)
+        // Only restore admin if they have the correct role and id
+        if (parsedUser.role === 'admin' && parsedUser.id === 'admin') {
+          setUser(parsedUser)
+        } else {
+          // Clear invalid admin data
+          localStorage.removeItem('user')
+        }
       } catch (error) {
         console.error('Error parsing saved user:', error)
         localStorage.removeItem('user')
@@ -56,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // For demo purposes, accept any email/password combination
+      // For demo purposes, accept any email/password combination for regular users
       const newUser: User = {
         id: '1',
         email,

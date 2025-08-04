@@ -289,13 +289,63 @@ router.delete('/:id', async (req, res) => {
 // Get file statistics
 router.get('/stats', async (req, res) => {
   try {
-    const stats = await db.getStats();
-    res.json(stats);
+    const files = await db.getFiles()
+    
+    // Calculate real statistics
+    const totalFiles = files.length
+    let totalStorage = 0
+    const fileTypeStats = {}
+    const clientCodeStats = {}
+    const assetTypeStats = {}
+    const monthlyStats = {}
+
+    files.forEach(file => {
+      // Calculate storage (assuming average file size of 100KB for demo)
+      totalStorage += file.size || 102400 // 100KB default
+
+      // File type stats
+      const fileType = file.fileType || 'Unknown'
+      fileTypeStats[fileType] = (fileTypeStats[fileType] || 0) + 1
+
+      // Client code stats
+      const clientCode = file.clientCode || 'Unknown'
+      clientCodeStats[clientCode] = (clientCodeStats[clientCode] || 0) + 1
+
+      // Asset type stats
+      const assetType = file.assetType || 'Unknown'
+      assetTypeStats[assetType] = (assetTypeStats[assetType] || 0) + 1
+
+      // Monthly stats
+      if (file.fileDate) {
+        const month = file.fileDate.substring(0, 7) // YYYY-MM
+        monthlyStats[month] = (monthlyStats[month] || 0) + 1
+      }
+    })
+
+    // Convert total storage to human readable format
+    const formatStorage = (bytes) => {
+      if (bytes === 0) return '0 MB'
+      const k = 1024
+      const sizes = ['B', 'KB', 'MB', 'GB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    }
+
+    const stats = {
+      total_files: totalFiles,
+      total_storage: formatStorage(totalStorage),
+      file_type_stats: fileTypeStats,
+      client_code_stats: clientCodeStats,
+      asset_type_stats: assetTypeStats,
+      monthly_stats: monthlyStats
+    }
+
+    res.json(stats)
   } catch (error) {
-    console.error('Stats error:', error);
-    res.status(500).json({ error: 'Failed to fetch statistics' });
+    console.error('Get stats error:', error)
+    res.status(500).json({ error: 'Failed to get statistics' })
   }
-});
+})
 
 // Get database status
 router.get('/db-status', async (req, res) => {
