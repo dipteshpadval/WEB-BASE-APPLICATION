@@ -31,19 +31,50 @@ function TestPage() {
   )
 }
 
+// Simple Loading Component
+function LoadingPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+      <div className="text-center text-white">
+        <h1 className="text-4xl font-bold mb-4">🚀 App Loading...</h1>
+        <p className="text-xl mb-4">React app is working!</p>
+        <p className="text-sm">URL: {window.location.href}</p>
+        <p className="text-sm">Time: {new Date().toLocaleString()}</p>
+        <div className="mt-4">
+          <a href="/test" className="text-blue-300 hover:text-blue-100 underline">Test Route</a>
+          <span className="mx-2">|</span>
+          <a href="/login" className="text-green-300 hover:text-green-100 underline">Login Page</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Simple Home Page for Testing
+function HomePage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+      <div className="text-center text-white">
+        <h1 className="text-4xl font-bold mb-4">🏠 Welcome to File Manager</h1>
+        <p className="text-xl mb-4">React app is working correctly!</p>
+        <p className="text-sm mb-4">URL: {window.location.href}</p>
+        <p className="text-sm mb-6">Time: {new Date().toLocaleString()}</p>
+        <div className="space-y-2">
+          <a href="/test" className="block text-blue-300 hover:text-blue-100 underline">🧪 Test Route</a>
+          <a href="/login" className="block text-green-300 hover:text-green-100 underline">🔐 Login Page</a>
+          <a href="/admin" className="block text-purple-300 hover:text-purple-100 underline">👨‍💼 Admin Page</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingPage />
   }
 
   if (!isAuthenticated) {
@@ -58,14 +89,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading } = useAuth()
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingPage />
   }
 
   if (!isAdmin) {
@@ -87,6 +111,7 @@ function AppContent() {
         
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/home" element={<HomePage />} />
         
         {/* Protected Routes */}
         <Route path="/" element={
@@ -113,7 +138,7 @@ function AppContent() {
         } />
         
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </Router>
   )
