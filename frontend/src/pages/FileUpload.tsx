@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useMutation, useQueryClient } from 'react-query'
 import { filesAPI } from '../lib/api'
-import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, X, FileText, CheckCircle, AlertCircle, Cloud, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getClientCodes } from '../lib/clientCodes'
 
@@ -105,83 +105,116 @@ export default function FileUpload() {
 
   return (
     <div className="space-responsive">
-      {/* Header */}
-      <div className="mobile-mb-4">
-        <h1 className="mobile-text-lg font-bold text-gray-900">Upload Files</h1>
-        <p className="mobile-text-sm text-gray-600 mt-1">Upload Excel files with metadata</p>
+      {/* Header with enhanced styling */}
+      <div className="mobile-mb-6">
+        <div className="flex items-center mb-3">
+          <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 mr-4">
+            <Upload className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="mobile-text-lg font-bold text-white">Upload Files</h1>
+            <p className="mobile-text-sm text-white/80">Upload Excel files with metadata</p>
+          </div>
+        </div>
       </div>
 
-      {/* Drop Zone */}
-      <div className="mobile-card mobile-mb-4">
+      {/* Enhanced Drop Zone with 3D effects */}
+      <div className="mobile-card mobile-mb-6">
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-4 sm:p-6 md:p-8 text-center cursor-pointer transition-colors duration-200 ${
+          className={`border-2 border-dashed rounded-3xl p-6 sm:p-8 md:p-12 text-center cursor-pointer transition-all duration-500 ${
             isDragActive
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
+              ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-2xl scale-105'
+              : 'border-gray-300 hover:border-blue-400 hover:bg-gradient-to-br from-gray-50 to-blue-50 hover:shadow-xl'
           }`}
         >
           <input {...getInputProps()} />
-          <Upload className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-3 sm:mb-4" />
+          <div className="mb-6">
+            <div className={`mx-auto mb-4 transition-all duration-300 ${
+              isDragActive ? 'scale-110' : 'scale-100'
+            }`}>
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+                <Cloud className="h-8 w-8 sm:h-12 sm:w-12 text-white" />
+              </div>
+            </div>
+          </div>
           {isDragActive ? (
-            <p className="mobile-text-base text-blue-600">Drop the files here...</p>
+            <div className="space-y-3">
+              <p className="mobile-text-base font-semibold text-blue-600">Drop the files here...</p>
+              <div className="flex justify-center">
+                <div className="w-16 h-1 bg-blue-600 rounded-full animate-pulse"></div>
+              </div>
+            </div>
           ) : (
-            <div>
-              <p className="mobile-text-base text-gray-600 mb-2">
+            <div className="space-y-4">
+              <p className="mobile-text-base font-semibold text-gray-700 mb-3">
                 Drag and drop Excel files here, or click to select files
               </p>
               <p className="mobile-text-sm text-gray-500">
                 Supports .xlsx, .xls, and .xlsm files
               </p>
+              <div className="flex justify-center space-x-2">
+                <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">.xlsx</div>
+                <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">.xls</div>
+                <div className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">.xlsm</div>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* File List */}
+      {/* File List with enhanced styling */}
       {files.length > 0 && (
         <div className="space-responsive">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mobile-mb-4">
-            <h2 className="mobile-text-base font-semibold text-gray-900 mb-2 sm:mb-0">
-              Files to Upload ({files.length})
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mobile-mb-6">
+            <div className="flex items-center mb-4 sm:mb-0">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-green-600 mr-3">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              <h2 className="mobile-text-base font-semibold text-white">
+                Files to Upload ({files.length})
+              </h2>
+            </div>
             <button
               onClick={uploadAllFiles}
               disabled={uploadMutation.isLoading}
-              className="btn btn-primary touch-target w-full sm:w-auto"
+              className="btn btn-success touch-target w-full sm:w-auto"
             >
+              <Zap className="h-4 w-4 mr-2" />
               {uploadMutation.isLoading ? 'Uploading...' : 'Upload All Files'}
             </button>
           </div>
 
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-4 sm:space-y-6">
             {files.map((fileData) => (
-              <div key={fileData.id} className="mobile-card">
-                {/* File Header */}
-                <div className="flex items-center justify-between mobile-mb-4">
+              <div key={fileData.id} className="mobile-card group">
+                {/* File Header with enhanced styling */}
+                <div className="flex items-center justify-between mobile-mb-6">
                   <div className="flex items-center min-w-0 flex-1">
-                    <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 mr-2 sm:mr-3 flex-shrink-0" />
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 mr-4 flex-shrink-0">
+                      <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <p className="mobile-text-sm font-medium text-gray-900 truncate">
+                      <p className="mobile-text-sm font-semibold text-gray-900 truncate">
                         {fileData.file.name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 mt-1">
                         {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => removeFile(fileData.id)}
-                    className="ml-2 p-1 text-gray-400 hover:text-gray-600 touch-target"
+                    className="ml-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl touch-target transition-all duration-300"
                   >
-                    <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <X className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
                 </div>
 
-                {/* Metadata Form */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block mobile-text-sm font-medium text-gray-700 mb-1">
+                {/* Enhanced Metadata Form */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  <div className="space-y-2">
+                    <label className="block mobile-text-sm font-semibold text-gray-700">
                       File Type *
                     </label>
                     <select
@@ -200,8 +233,8 @@ export default function FileUpload() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block mobile-text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label className="block mobile-text-sm font-semibold text-gray-700">
                       Asset Type *
                     </label>
                     <input
@@ -214,8 +247,8 @@ export default function FileUpload() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block mobile-text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label className="block mobile-text-sm font-semibold text-gray-700">
                       Client Code *
                     </label>
                     <select
@@ -231,8 +264,8 @@ export default function FileUpload() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block mobile-text-sm font-medium text-gray-700 mb-1">
+                  <div className="space-y-2">
+                    <label className="block mobile-text-sm font-semibold text-gray-700">
                       File Date *
                     </label>
                     <input
@@ -245,14 +278,24 @@ export default function FileUpload() {
                   </div>
                 </div>
 
-                {/* Upload Button */}
-                <div className="mt-4 flex justify-end">
+                {/* Enhanced Upload Button */}
+                <div className="mt-6 flex justify-end">
                   <button
                     onClick={() => uploadFile(fileData)}
                     disabled={uploadMutation.isLoading}
                     className="btn btn-primary touch-target"
                   >
-                    {uploadMutation.isLoading ? 'Uploading...' : 'Upload File'}
+                    {uploadMutation.isLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload File
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
