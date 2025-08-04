@@ -114,6 +114,11 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 p-4">
       <div className="max-w-md w-full space-y-8">
+        {/* Debug Message */}
+        <div className="text-center p-4 bg-green-500/20 border border-green-500/30 rounded-xl">
+          <p className="text-green-300 text-sm font-medium">✅ NEW LOGIN PAGE LOADED - Version 2.0</p>
+        </div>
+
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center mb-6">
