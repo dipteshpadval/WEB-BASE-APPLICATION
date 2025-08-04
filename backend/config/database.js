@@ -174,23 +174,34 @@ class Database {
     try {
       if (fs.existsSync(this.statsPath)) {
         const data = fs.readFileSync(this.statsPath, 'utf8');
-        return JSON.parse(data);
+        const stats = JSON.parse(data);
+        // Convert property names to match frontend expectations
+        return {
+          total_files: stats.total_files || 0,
+          total_size: stats.total_size || 0,
+          file_type_stats: stats.file_types || {},
+          asset_type_stats: stats.asset_types || {},
+          client_code_stats: stats.client_codes || {},
+          monthly_stats: stats.monthly_stats || {}
+        };
       }
       return {
         total_files: 0,
         total_size: 0,
-        file_types: {},
-        asset_types: {},
-        client_codes: {}
+        file_type_stats: {},
+        asset_type_stats: {},
+        client_code_stats: {},
+        monthly_stats: {}
       };
     } catch (error) {
       console.error('❌ Error reading local stats:', error);
       return {
         total_files: 0,
         total_size: 0,
-        file_types: {},
-        asset_types: {},
-        client_codes: {}
+        file_type_stats: {},
+        asset_type_stats: {},
+        client_code_stats: {},
+        monthly_stats: {}
       };
     }
   }
@@ -214,17 +225,27 @@ class Database {
       
       // Update file type stats
       const fileType = newFileData.file_type;
-      stats.file_types[fileType] = (stats.file_types[fileType] || 0) + 1;
+      stats.file_type_stats[fileType] = (stats.file_type_stats[fileType] || 0) + 1;
       
       // Update asset type stats
       const assetType = newFileData.asset_type;
-      stats.asset_types[assetType] = (stats.asset_types[assetType] || 0) + 1;
+      stats.asset_type_stats[assetType] = (stats.asset_type_stats[assetType] || 0) + 1;
       
       // Update client code stats
       const clientCode = newFileData.client_code;
-      stats.client_codes[clientCode] = (stats.client_codes[clientCode] || 0) + 1;
+      stats.client_code_stats[clientCode] = (stats.client_code_stats[clientCode] || 0) + 1;
       
-      this.saveLocalStats(stats);
+      // Save with the original property names for backward compatibility
+      const saveStats = {
+        total_files: stats.total_files,
+        total_size: stats.total_size,
+        file_types: stats.file_type_stats,
+        asset_types: stats.asset_type_stats,
+        client_codes: stats.client_code_stats,
+        monthly_stats: stats.monthly_stats
+      };
+      
+      this.saveLocalStats(saveStats);
       return true;
     } catch (error) {
       console.error('❌ Error updating local stats:', error);
