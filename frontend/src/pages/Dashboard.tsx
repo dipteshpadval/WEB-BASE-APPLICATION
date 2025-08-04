@@ -50,7 +50,7 @@ export default function Dashboard() {
           Dashboard
         </h1>
         <p className="mobile-text-sm text-white/80">
-          Welcome back, {user?.email}
+          Welcome back, {user?.name}
         </p>
       </div>
 
