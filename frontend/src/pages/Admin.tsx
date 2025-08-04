@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface User {
+interface UserData {
   employeeCode: string
   name: string
   mobile: string
@@ -70,7 +70,7 @@ export default function Admin() {
     logout
   } = useAuth()
 
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<UserData[]>([])
   const [stats, setStats] = useState<SystemStats>({
     totalUsers: 0,
     activeUsers: 0,
@@ -101,7 +101,21 @@ export default function Admin() {
         getSystemStats()
       ])
       setUsers(usersData)
-      setStats(statsData)
+      
+      // Transform the stats data to match the expected format
+      const transformedStats = {
+        totalUsers: statsData.totalUsers || 0,
+        activeUsers: statsData.activeUsers || 0,
+        pendingUsers: statsData.pendingUsers || 0,
+        terminatedUsers: statsData.terminatedUsers || 0,
+        adminUsers: statsData.adminUsers || 0,
+        totalFiles: 0, // Default value since this comes from files API
+        totalStorage: '0 MB', // Default value
+        fileTypeStats: {}, // Default empty object
+        clientCodeStats: {}, // Default empty object
+        assetTypeStats: {} // Default empty object
+      }
+      setStats(transformedStats)
     } catch (error) {
       console.error('Error loading admin data:', error)
       toast.error('Failed to load admin data')

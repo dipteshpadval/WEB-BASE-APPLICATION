@@ -61,7 +61,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     cors: 'enabled',
-    database: 'OneDrive Database'
+    database: 'Local Database'
   });
 });
 
@@ -90,10 +90,9 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('✅ OneDrive folder found: OneDrive Database');
+  console.log('✅ Using local database');
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);
-  console.log('✅ Using OneDrive folder database for cross-device sync');
-  console.log('📁 OneDrive path: OneDrive Database');
+  console.log('✅ Database initialized successfully');
 }); 
