@@ -40,7 +40,11 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Initialize database
-db.initialize();
+try {
+  db.initialize();
+} catch (error) {
+  console.log('⚠️  Database initialization failed, continuing with basic setup:', error.message);
+}
 
 // Routes
 app.use('/api/files', require('./routes/files'));

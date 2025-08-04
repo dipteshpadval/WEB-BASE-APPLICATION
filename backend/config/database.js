@@ -1,6 +1,13 @@
 const fs = require('fs');
 const path = require('path');
-const OneDriveFolderDB = require('./onedrive-folder-db');
+
+// Try to import OneDrive database, but don't crash if it fails
+let OneDriveFolderDB = null;
+try {
+  OneDriveFolderDB = require('./onedrive-folder-db');
+} catch (error) {
+  console.log('⚠️  OneDrive database not available:', error.message);
+}
 
 // Production database path (when OneDrive is not available)
 const PRODUCTION_DB_PATH = path.join(__dirname, '../data');
@@ -16,21 +23,28 @@ class Database {
   initialize() {
     try {
       // Try to initialize OneDrive database
-      this.oneDriveDb = new OneDriveFolderDB();
-      const oneDriveStatus = this.oneDriveDb.getStatus();
-      
-      if (oneDriveStatus.found) {
-        this.useOneDrive = true;
-        console.log('✅ OneDrive folder found:', oneDriveStatus.onedrivePath);
-        return true;
+      if (OneDriveFolderDB) {
+        this.oneDriveDb = new OneDriveFolderDB();
+        const oneDriveStatus = this.oneDriveDb.getStatus();
+        
+        if (oneDriveStatus.found) {
+          this.useOneDrive = true;
+          console.log('✅ OneDrive folder found:', oneDriveStatus.onedrivePath);
+          return true;
+        } else {
+          console.log('⚠️  OneDrive folder not found, using production database');
+          this.useOneDrive = false;
+          this.ensureDataDirectory();
+          return false;
+        }
       } else {
-        console.log('⚠️  OneDrive folder not found, using production database');
+        console.log('⚠️  OneDrive database not available, using production database');
         this.useOneDrive = false;
         this.ensureDataDirectory();
         return false;
       }
     } catch (error) {
-      console.log('⚠️  OneDrive initialization failed, using production database');
+      console.log('⚠️  OneDrive initialization failed, using production database:', error.message);
       this.useOneDrive = false;
       this.ensureDataDirectory();
       return false;
