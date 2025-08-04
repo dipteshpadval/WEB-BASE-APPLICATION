@@ -117,6 +117,7 @@ export default function Login() {
         {/* Debug Message */}
         <div className="text-center p-4 bg-green-500/20 border border-green-500/30 rounded-xl">
           <p className="text-green-300 text-sm font-medium">✅ NEW LOGIN PAGE LOADED - Version 2.0</p>
+          <p className="text-green-300 text-xs mt-1">If you see this message, the new login page is working!</p>
         </div>
 
         {/* Header */}
