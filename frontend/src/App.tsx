@@ -160,7 +160,7 @@ function AppContent() {
         } />
         
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/debug" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   )

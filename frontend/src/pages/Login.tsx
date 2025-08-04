@@ -85,7 +85,14 @@ export default function Login() {
     try {
       await login(loginData.employeeCode, loginData.password)
       toast.success('Login successful!')
-      navigate('/')
+      
+      // Redirect based on user role
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+      if (currentUser.role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (error: any) {
       console.error('❌ Login error:', error)
       toast.error(error.message || 'Login failed')
