@@ -1,161 +1,222 @@
 const fs = require('fs');
 const path = require('path');
-const { OneDriveFolderDB } = require('./onedrive-folder-db');
+const OneDriveFolderDB = require('./onedrive-folder-db');
 
-// Database file paths (fallback)
-const DB_DIR = path.join(__dirname, '..', 'data');
-const FILES_DB = path.join(DB_DIR, 'files.json');
-const STATS_DB = path.join(DB_DIR, 'stats.json');
+// Production database path (when OneDrive is not available)
+const PRODUCTION_DB_PATH = path.join(__dirname, '../data');
 
-// Ensure database directory exists
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
-}
+class Database {
+  constructor() {
+    this.oneDriveDb = null;
+    this.useOneDrive = false;
+    this.filesPath = path.join(PRODUCTION_DB_PATH, 'files.json');
+    this.statsPath = path.join(PRODUCTION_DB_PATH, 'stats.json');
+  }
 
-// Initialize database files if they don't exist
-if (!fs.existsSync(FILES_DB)) {
-  fs.writeFileSync(FILES_DB, JSON.stringify([], null, 2));
-}
-
-if (!fs.existsSync(STATS_DB)) {
-  fs.writeFileSync(STATS_DB, JSON.stringify({
-    total_files: 0,
-    file_type_stats: {},
-    asset_type_stats: {},
-    client_code_stats: {},
-    monthly_stats: {}
-  }, null, 2));
-}
-
-// Local database operations (fallback)
-const localDb = {
-  getFiles: () => {
+  initialize() {
     try {
-      const data = fs.readFileSync(FILES_DB, 'utf8');
-      return JSON.parse(data);
+      // Try to initialize OneDrive database
+      this.oneDriveDb = new OneDriveFolderDB();
+      const oneDriveStatus = this.oneDriveDb.getStatus();
+      
+      if (oneDriveStatus.found) {
+        this.useOneDrive = true;
+        console.log('✅ OneDrive folder found:', oneDriveStatus.onedrivePath);
+        return true;
+      } else {
+        console.log('⚠️  OneDrive folder not found, using production database');
+        this.useOneDrive = false;
+        this.ensureDataDirectory();
+        return false;
+      }
     } catch (error) {
-      console.error('Error reading files database:', error);
+      console.log('⚠️  OneDrive initialization failed, using production database');
+      this.useOneDrive = false;
+      this.ensureDataDirectory();
+      return false;
+    }
+  }
+
+  ensureDataDirectory() {
+    if (!fs.existsSync(PRODUCTION_DB_PATH)) {
+      fs.mkdirSync(PRODUCTION_DB_PATH, { recursive: true });
+    }
+  }
+
+  getOneDrivePath() {
+    if (this.oneDriveDb) {
+      const status = this.oneDriveDb.getStatus();
+      return status.onedrivePath;
+    }
+    return 'Production Database';
+  }
+
+  getFiles() {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.getFiles();
+    } else {
+      return this.getLocalFiles();
+    }
+  }
+
+  saveFiles(files) {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.saveFiles(files);
+    } else {
+      return this.saveLocalFiles(files);
+    }
+  }
+
+  addFile(fileData) {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.addFile(fileData);
+    } else {
+      return this.addLocalFile(fileData);
+    }
+  }
+
+  removeFile(fileId) {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.removeFile(fileId);
+    } else {
+      return this.removeLocalFile(fileId);
+    }
+  }
+
+  getStats() {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.getStats();
+    } else {
+      return this.getLocalStats();
+    }
+  }
+
+  saveStats(stats) {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.saveStats(stats);
+    } else {
+      return this.saveLocalStats(stats);
+    }
+  }
+
+  updateStats(newFileData) {
+    if (this.useOneDrive && this.oneDriveDb) {
+      return this.oneDriveDb.updateStats(newFileData);
+    } else {
+      return this.updateLocalStats(newFileData);
+    }
+  }
+
+  // Local database methods (for production)
+  getLocalFiles() {
+    try {
+      if (fs.existsSync(this.filesPath)) {
+        const data = fs.readFileSync(this.filesPath, 'utf8');
+        return JSON.parse(data);
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error reading local files:', error);
       return [];
     }
-  },
+  }
 
-  saveFiles: (files) => {
+  saveLocalFiles(files) {
     try {
-      fs.writeFileSync(FILES_DB, JSON.stringify(files, null, 2));
+      fs.writeFileSync(this.filesPath, JSON.stringify(files, null, 2));
+      return true;
     } catch (error) {
-      console.error('Error saving files database:', error);
+      console.error('❌ Error saving local files:', error);
+      return false;
     }
-  },
+  }
 
-  getStats: () => {
+  addLocalFile(fileData) {
     try {
-      const data = fs.readFileSync(STATS_DB, 'utf8');
-      return JSON.parse(data);
+      const files = this.getLocalFiles();
+      files.push(fileData);
+      this.saveLocalFiles(files);
+      this.updateLocalStats(fileData);
+      return true;
     } catch (error) {
-      console.error('Error reading stats database:', error);
+      console.error('❌ Error adding local file:', error);
+      return false;
+    }
+  }
+
+  removeLocalFile(fileId) {
+    try {
+      const files = this.getLocalFiles();
+      const updatedFiles = files.filter(file => file.id !== fileId);
+      this.saveLocalFiles(updatedFiles);
+      return true;
+    } catch (error) {
+      console.error('❌ Error removing local file:', error);
+      return false;
+    }
+  }
+
+  getLocalStats() {
+    try {
+      if (fs.existsSync(this.statsPath)) {
+        const data = fs.readFileSync(this.statsPath, 'utf8');
+        return JSON.parse(data);
+      }
       return {
         total_files: 0,
-        file_type_stats: {},
-        asset_type_stats: {},
-        client_code_stats: {},
-        monthly_stats: {}
+        total_size: 0,
+        file_types: {},
+        asset_types: {},
+        client_codes: {}
+      };
+    } catch (error) {
+      console.error('❌ Error reading local stats:', error);
+      return {
+        total_files: 0,
+        total_size: 0,
+        file_types: {},
+        asset_types: {},
+        client_codes: {}
       };
     }
-  },
+  }
 
-  saveStats: (stats) => {
+  saveLocalStats(stats) {
     try {
-      fs.writeFileSync(STATS_DB, JSON.stringify(stats, null, 2));
+      fs.writeFileSync(this.statsPath, JSON.stringify(stats, null, 2));
+      return true;
     } catch (error) {
-      console.error('Error saving stats database:', error);
+      console.error('❌ Error saving local stats:', error);
+      return false;
     }
   }
-};
 
-// Hybrid database that uses OneDrive folder first, falls back to local
-class HybridDB {
-  constructor() {
-    this.oneDriveDb = new OneDriveFolderDB();
-    this.useOneDrive = false;
-  }
-
-  async initialize() {
-    this.useOneDrive = this.oneDriveDb.useOneDrive;
-    return this.useOneDrive;
-  }
-
-  async getFiles() {
-    if (this.useOneDrive) {
-      return this.oneDriveDb.getFiles();
-    }
-    return localDb.getFiles();
-  }
-
-  async saveFiles(files) {
-    if (this.useOneDrive) {
-      this.oneDriveDb.saveFiles(files);
-    }
-    localDb.saveFiles(files); // Always save locally as backup
-  }
-
-  async addFile(file) {
-    const files = await this.getFiles();
-    files.push(file);
-    await this.saveFiles(files);
-    return file;
-  }
-
-  async removeFile(id) {
-    const files = await this.getFiles();
-    const filteredFiles = files.filter(f => f.id !== id);
-    await this.saveFiles(filteredFiles);
-    return files.length - filteredFiles.length > 0;
-  }
-
-  async getStats() {
-    if (this.useOneDrive) {
-      return this.oneDriveDb.getStats();
-    }
-    return localDb.getStats();
-  }
-
-  async saveStats(stats) {
-    if (this.useOneDrive) {
-      this.oneDriveDb.saveStats(stats);
-    }
-    localDb.saveStats(stats); // Always save locally as backup
-  }
-
-  async updateStats() {
-    const files = await this.getFiles();
-    const stats = {
-      total_files: files.length,
-      file_type_stats: {},
-      asset_type_stats: {},
-      client_code_stats: {},
-      monthly_stats: {}
-    };
-
-    files.forEach(file => {
-      // File type stats
-      stats.file_type_stats[file.file_type] = (stats.file_type_stats[file.file_type] || 0) + 1;
+  updateLocalStats(newFileData) {
+    try {
+      const stats = this.getLocalStats();
       
-      // Asset type stats
-      stats.asset_type_stats[file.asset_type] = (stats.asset_type_stats[file.asset_type] || 0) + 1;
+      stats.total_files += 1;
+      stats.total_size += newFileData.file_size || 0;
       
-      // Client code stats
-      stats.client_code_stats[file.client_code] = (stats.client_code_stats[file.client_code] || 0) + 1;
+      // Update file type stats
+      const fileType = newFileData.file_type;
+      stats.file_types[fileType] = (stats.file_types[fileType] || 0) + 1;
       
-      // Monthly stats
-      const month = new Date(file.uploaded_at).toISOString().slice(0, 7);
-      stats.monthly_stats[month] = (stats.monthly_stats[month] || 0) + 1;
-    });
-
-    await this.saveStats(stats);
-    return stats;
+      // Update asset type stats
+      const assetType = newFileData.asset_type;
+      stats.asset_types[assetType] = (stats.asset_types[assetType] || 0) + 1;
+      
+      // Update client code stats
+      const clientCode = newFileData.client_code;
+      stats.client_codes[clientCode] = (stats.client_codes[clientCode] || 0) + 1;
+      
+      this.saveLocalStats(stats);
+      return true;
+    } catch (error) {
+      console.error('❌ Error updating local stats:', error);
+      return false;
+    }
   }
 }
 
-const db = new HybridDB();
-
-module.exports = { db }; 
+module.exports = new Database(); 
