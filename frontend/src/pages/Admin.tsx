@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from 'react-query'
-import { filesAPI } from '../lib/api'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useQuery, useMutation, useQueryClient } from 'react-query'
+import AdminLogin from '../components/AdminLogin'
+import ChangePassword from '../components/ChangePassword'
 import { 
   Users, 
   Settings, 
@@ -27,21 +28,24 @@ import {
   HardDrive,
   Network,
   Server,
-  Zap
+  Zap,
+  Lock,
+  UserX,
+  UserPlus,
+  RefreshCw,
+  LogOut
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 
 interface SystemStats {
   totalUsers: number
+  activeUsers: number
   totalFiles: number
   totalStorage: string
-  activeSessions: number
-  systemUptime: string
-  lastBackup: string
-  diskUsage: number
-  memoryUsage: number
-  cpuUsage: number
+  fileTypeStats: Record<string, number>
+  clientCodeStats: Record<string, number>
+  assetTypeStats: Record<string, number>
 }
 
 interface User {
@@ -50,7 +54,7 @@ interface User {
   name: string
   role: string
   lastLogin: string
-  status: 'active' | 'inactive' | 'suspended'
+  isActive: boolean
   filesUploaded: number
   storageUsed: string
 }
@@ -65,90 +69,65 @@ interface SystemLog {
 }
 
 export default function Admin() {
-  const { user } = useAuth()
+  const { user, isAdmin, getUsers, terminateUser, activateUser, getSystemStats, logout } = useAuth()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('overview')
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [showAdminLogin, setShowAdminLogin] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  // Mock data for demonstration
-  const systemStats: SystemStats = {
-    totalUsers: 12,
-    totalFiles: 156,
-    totalStorage: '2.4 GB',
-    activeSessions: 8,
-    systemUptime: '15 days, 8 hours',
-    lastBackup: '2025-08-04 14:30:00',
-    diskUsage: 67,
-    memoryUsage: 45,
-    cpuUsage: 23
-  }
-
-  const users: User[] = [
-    {
-      id: '1',
-      email: 'admin@certitude.com',
-      name: 'Admin User',
-      role: 'Administrator',
-      lastLogin: '2025-08-04 15:30:00',
-      status: 'active',
-      filesUploaded: 45,
-      storageUsed: '1.2 GB'
-    },
-    {
-      id: '2',
-      email: 'user1@certitude.com',
-      name: 'John Doe',
-      role: 'User',
-      lastLogin: '2025-08-04 14:20:00',
-      status: 'active',
-      filesUploaded: 23,
-      storageUsed: '800 MB'
-    },
-    {
-      id: '3',
-      email: 'user2@certitude.com',
-      name: 'Jane Smith',
-      role: 'User',
-      lastLogin: '2025-08-03 16:45:00',
-      status: 'inactive',
-      filesUploaded: 12,
-      storageUsed: '400 MB'
+  // Check if user is admin, if not show login
+  useEffect(() => {
+    if (!isAdmin && user) {
+      setShowAdminLogin(true)
     }
-  ]
+  }, [isAdmin, user])
 
-  const systemLogs: SystemLog[] = [
+  // Fetch system stats
+  const { data: systemStats, isLoading: statsLoading } = useQuery(
+    ['systemStats'],
+    getSystemStats,
     {
-      id: '1',
-      timestamp: '2025-08-04 15:30:00',
-      level: 'success',
-      message: 'File uploaded successfully',
-      user: 'user1@certitude.com',
-      action: 'FILE_UPLOAD'
-    },
-    {
-      id: '2',
-      timestamp: '2025-08-04 15:25:00',
-      level: 'info',
-      message: 'User logged in',
-      user: 'admin@certitude.com',
-      action: 'USER_LOGIN'
-    },
-    {
-      id: '3',
-      timestamp: '2025-08-04 15:20:00',
-      level: 'warning',
-      message: 'Large file upload detected',
-      user: 'user2@certitude.com',
-      action: 'FILE_UPLOAD'
-    },
-    {
-      id: '4',
-      timestamp: '2025-08-04 15:15:00',
-      level: 'error',
-      message: 'Database connection timeout',
-      action: 'SYSTEM_ERROR'
+      enabled: isAdmin,
+      refetchInterval: 30000, // Refetch every 30 seconds
     }
-  ]
+  )
+
+  // Fetch users
+  const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery(
+    ['users'],
+    getUsers,
+    {
+      enabled: isAdmin,
+    }
+  )
+
+  // Mutations
+  const terminateUserMutation = useMutation(terminateUser, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users'])
+      toast.success('User terminated successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to terminate user')
+    }
+  })
+
+  const activateUserMutation = useMutation(activateUser, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users'])
+      toast.success('User activated successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to activate user')
+    }
+  })
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(user =>
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -168,26 +147,114 @@ export default function Admin() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'text-green-600 bg-green-100'
-      case 'inactive': return 'text-gray-600 bg-gray-100'
-      case 'suspended': return 'text-red-600 bg-red-100'
-      default: return 'text-gray-600 bg-gray-100'
+  const getStatusColor = (isActive: boolean) => {
+    return isActive 
+      ? 'text-green-600 bg-green-100' 
+      : 'text-red-600 bg-red-100'
+  }
+
+  const handleTerminateUser = (userId: string) => {
+    if (confirm('Are you sure you want to terminate this user?')) {
+      terminateUserMutation.mutate(userId)
     }
+  }
+
+  const handleActivateUser = (userId: string) => {
+    activateUserMutation.mutate(userId)
+  }
+
+  // Mock system logs (in real app, this would come from API)
+  const systemLogs: SystemLog[] = [
+    {
+      id: '1',
+      timestamp: new Date().toISOString(),
+      level: 'success',
+      message: 'System stats updated successfully',
+      user: 'admin@certitude.com',
+      action: 'SYSTEM_UPDATE'
+    },
+    {
+      id: '2',
+      timestamp: new Date(Date.now() - 60000).toISOString(),
+      level: 'info',
+      message: 'User login detected',
+      user: 'user1@certitude.com',
+      action: 'USER_LOGIN'
+    },
+    {
+      id: '3',
+      timestamp: new Date(Date.now() - 120000).toISOString(),
+      level: 'warning',
+      message: 'Large file upload detected',
+      user: 'user2@certitude.com',
+      action: 'FILE_UPLOAD'
+    }
+  ]
+
+  // If not admin, show login
+  if (!isAdmin) {
+    return (
+      <div className="space-responsive">
+        <div className="mobile-card text-center">
+          <div className="p-8">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-red-600">
+                <Shield className="h-12 w-12 text-white" />
+              </div>
+            </div>
+            <h1 className="mobile-text-lg font-bold text-white mb-4">Admin Access Required</h1>
+            <p className="mobile-text-sm text-white/70 mb-6">
+              This page requires administrator privileges. Please log in with admin credentials.
+            </p>
+            <button
+              onClick={() => setShowAdminLogin(true)}
+              className="btn btn-primary"
+            >
+              <Shield className="h-4 w-4 mr-2" />
+              Admin Login
+            </button>
+          </div>
+        </div>
+
+        {showAdminLogin && (
+          <AdminLogin
+            onSuccess={() => setShowAdminLogin(false)}
+            onCancel={() => setShowAdminLogin(false)}
+          />
+        )}
+      </div>
+    )
   }
 
   return (
     <div className="space-responsive">
-      {/* Header with enhanced styling */}
+      {/* Header with admin info */}
       <div className="mobile-mb-6">
-        <div className="flex items-center mb-4">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 mr-4">
-            <Shield className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 mr-4">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="mobile-text-lg font-bold text-white">Admin Dashboard</h1>
+              <p className="mobile-text-sm text-white/80">Welcome, {user?.name}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="mobile-text-lg font-bold text-white">Admin Dashboard</h1>
-            <p className="mobile-text-sm text-white/80">System administration and monitoring</p>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="btn btn-secondary"
+            >
+              <Lock className="h-4 w-4 mr-2" />
+              Change Password
+            </button>
+            <button
+              onClick={logout}
+              className="btn btn-danger"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </button>
           </div>
         </div>
       </div>
@@ -208,7 +275,7 @@ export default function Admin() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
                   activeTab === tab.id
-                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg'
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
@@ -235,7 +302,7 @@ export default function Admin() {
                 <div className="ml-4 sm:ml-5">
                   <p className="mobile-text-sm font-medium text-gray-600">Total Users</p>
                   <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                    {systemStats.totalUsers}
+                    {statsLoading ? '...' : systemStats?.totalUsers || 0}
                   </p>
                 </div>
               </div>
@@ -245,13 +312,13 @@ export default function Admin() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="p-3 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+                    <UserCheck className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                   </div>
                 </div>
                 <div className="ml-4 sm:ml-5">
-                  <p className="mobile-text-sm font-medium text-gray-600">Total Files</p>
+                  <p className="mobile-text-sm font-medium text-gray-600">Active Users</p>
                   <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                    {systemStats.totalFiles}
+                    {statsLoading ? '...' : systemStats?.activeUsers || 0}
                   </p>
                 </div>
               </div>
@@ -261,13 +328,13 @@ export default function Admin() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                    <HardDrive className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                   </div>
                 </div>
                 <div className="ml-4 sm:ml-5">
-                  <p className="mobile-text-sm font-medium text-gray-600">Storage Used</p>
+                  <p className="mobile-text-sm font-medium text-gray-600">Total Files</p>
                   <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                    {systemStats.totalStorage}
+                    {statsLoading ? '...' : systemStats?.totalFiles || 0}
                   </p>
                 </div>
               </div>
@@ -277,90 +344,52 @@ export default function Admin() {
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                    <Network className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+                    <HardDrive className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                   </div>
                 </div>
                 <div className="ml-4 sm:ml-5">
-                  <p className="mobile-text-sm font-medium text-gray-600">Active Sessions</p>
+                  <p className="mobile-text-sm font-medium text-gray-600">Storage Used</p>
                   <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                    {systemStats.activeSessions}
+                    {statsLoading ? '...' : systemStats?.totalStorage || '0 MB'}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* System Performance */}
-          <div className="grid-responsive-2">
-            <div className="mobile-card">
-              <div className="card-header">
-                <div className="flex items-center">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 mr-3">
-                    <TrendingUp className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="mobile-text-base font-semibold text-gray-900">System Performance</h3>
+          {/* File Type Stats */}
+          <div className="mobile-card">
+            <div className="card-header">
+              <div className="flex items-center">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 mr-3">
+                  <BarChart3 className="h-5 w-5 text-white" />
                 </div>
-              </div>
-              <div className="card-content">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="mobile-text-sm font-medium text-gray-700">CPU Usage</span>
-                      <span className="mobile-text-sm font-bold text-gray-900">{systemStats.cpuUsage}%</span>
-                    </div>
-                    <div className="progress-3d">
-                      <div className="progress-fill" style={{ width: `${systemStats.cpuUsage}%` }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="mobile-text-sm font-medium text-gray-700">Memory Usage</span>
-                      <span className="mobile-text-sm font-bold text-gray-900">{systemStats.memoryUsage}%</span>
-                    </div>
-                    <div className="progress-3d">
-                      <div className="progress-fill" style={{ width: `${systemStats.memoryUsage}%` }}></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="mobile-text-sm font-medium text-gray-700">Disk Usage</span>
-                      <span className="mobile-text-sm font-bold text-gray-900">{systemStats.diskUsage}%</span>
-                    </div>
-                    <div className="progress-3d">
-                      <div className="progress-fill" style={{ width: `${systemStats.diskUsage}%` }}></div>
-                    </div>
-                  </div>
-                </div>
+                <h3 className="mobile-text-base font-semibold text-gray-900">File Type Distribution</h3>
               </div>
             </div>
-
-            <div className="mobile-card">
-              <div className="card-header">
-                <div className="flex items-center">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-green-600 mr-3">
-                    <Server className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="mobile-text-base font-semibold text-gray-900">System Info</h3>
+            <div className="card-content">
+              {statsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading stats...</p>
                 </div>
-              </div>
-              <div className="card-content">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="mobile-text-sm text-gray-600">Uptime</span>
-                    <span className="mobile-text-sm font-medium text-gray-900">{systemStats.systemUptime}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="mobile-text-sm text-gray-600">Last Backup</span>
-                    <span className="mobile-text-sm font-medium text-gray-900">
-                      {format(new Date(systemStats.lastBackup), 'MMM d, yyyy HH:mm')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="mobile-text-sm text-gray-600">Database</span>
-                    <span className="mobile-text-sm font-medium text-green-600">Online</span>
-                  </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {Object.entries(systemStats?.fileTypeStats || {}).map(([type, count]) => (
+                    <div key={type} className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-gray-900">{type}</span>
+                        <span className="text-2xl font-bold text-blue-600">{String(count)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {Object.keys(systemStats?.fileTypeStats || {}).length === 0 && (
+                    <div className="col-span-full text-center py-8 text-gray-500">
+                      No file type data available
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -378,77 +407,114 @@ export default function Admin() {
                   </div>
                   <h3 className="mobile-text-base font-semibold text-gray-900">User Management</h3>
                 </div>
-                <button className="btn btn-primary">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add User
-                </button>
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <button
+                    onClick={() => refetchUsers()}
+                    className="btn btn-secondary"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </button>
+                </div>
               </div>
             </div>
             <div className="card-content">
-              <div className="table-responsive">
-                <table className="table">
-                  <thead className="table-header">
-                    <tr>
-                      <th>User</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      <th>Last Login</th>
-                      <th>Files</th>
-                      <th>Storage</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="table-body">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td>
-                          <div className="flex items-center">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 mr-3">
-                              <UserCheck className="h-4 w-4 text-white" />
-                            </div>
-                            <div>
-                              <p className="mobile-text-sm font-medium text-gray-900">{user.name}</p>
-                              <p className="text-xs text-gray-500">{user.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="mobile-text-sm text-gray-900">{user.role}</span>
-                        </td>
-                        <td>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="mobile-text-sm text-gray-600">
-                            {format(new Date(user.lastLogin), 'MMM d, HH:mm')}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="mobile-text-sm font-medium text-gray-900">{user.filesUploaded}</span>
-                        </td>
-                        <td>
-                          <span className="mobile-text-sm text-gray-600">{user.storageUsed}</span>
-                        </td>
-                        <td>
-                          <div className="flex space-x-2">
-                            <button className="p-1 text-blue-600 hover:text-blue-800 transition-colors">
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <button className="p-1 text-green-600 hover:text-green-800 transition-colors">
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button className="p-1 text-red-600 hover:text-red-800 transition-colors">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
+              {usersLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-gray-600">Loading users...</p>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table">
+                    <thead className="table-header">
+                      <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Files</th>
+                        <th>Storage</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="table-body">
+                      {filteredUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
+                          <td>
+                            <div className="flex items-center">
+                              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 mr-3">
+                                <UserCheck className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <p className="mobile-text-sm font-medium text-gray-900">{user.name}</p>
+                                <p className="text-xs text-gray-500">{user.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="mobile-text-sm text-gray-900">{user.role}</span>
+                          </td>
+                          <td>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.isActive)}`}>
+                              {user.isActive ? 'Active' : 'Terminated'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="mobile-text-sm text-gray-600">
+                              {format(new Date(user.lastLogin), 'MMM d, HH:mm')}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="mobile-text-sm font-medium text-gray-900">{user.filesUploaded}</span>
+                          </td>
+                          <td>
+                            <span className="mobile-text-sm text-gray-600">{user.storageUsed}</span>
+                          </td>
+                          <td>
+                            <div className="flex space-x-2">
+                              {user.isActive ? (
+                                <button
+                                  onClick={() => handleTerminateUser(user.id)}
+                                  disabled={terminateUserMutation.isLoading}
+                                  className="p-1 text-red-600 hover:text-red-800 transition-colors disabled:opacity-50"
+                                  title="Terminate User"
+                                >
+                                  <UserX className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleActivateUser(user.id)}
+                                  disabled={activateUserMutation.isLoading}
+                                  className="p-1 text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                                  title="Activate User"
+                                >
+                                  <UserPlus className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filteredUsers.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      {searchTerm ? 'No users found matching your search' : 'No users available'}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -564,6 +630,11 @@ export default function Admin() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modals */}
+      {showChangePassword && (
+        <ChangePassword onClose={() => setShowChangePassword(false)} />
       )}
     </div>
   )
