@@ -1,25 +1,36 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 
 interface User {
   id: string
-  email: string
-  name?: string
+  name: string
+  mobile: string
+  employeeCode: string
+  email?: string
   role: 'user' | 'admin'
   isActive: boolean
+  isApproved: boolean
   lastLogin?: string
   filesUploaded?: number
   storageUsed?: string
+  createdAt: string
+  approvedBy?: string
+  approvedAt?: string
 }
 
 interface AuthContextType {
   user: User | null
   isAdmin: boolean
-  login: (email: string, password: string) => Promise<void>
+  isAuthenticated: boolean
+  register: (userData: { name: string; mobile: string; employeeCode: string }) => Promise<void>
+  login: (employeeCode: string, password: string) => Promise<void>
   adminLogin: (password: string) => Promise<void>
   logout: () => void
   isLoading: boolean
   changeAdminPassword: (oldPassword: string, newPassword: string) => Promise<void>
   getUsers: () => Promise<User[]>
+  approveUser: (userId: string) => Promise<void>
+  rejectUser: (userId: string) => Promise<void>
   terminateUser: (userId: string) => Promise<void>
   activateUser: (userId: string) => Promise<void>
   getSystemStats: () => Promise<any>
@@ -36,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check if user is admin - only true if explicitly logged in as admin
   const isAdmin = user?.role === 'admin' && user?.id === 'admin'
+  const isAuthenticated = !!user
 
   // Load user from localStorage on mount
   useEffect(() => {
@@ -46,8 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Only restore admin if they have the correct role and id
         if (parsedUser.role === 'admin' && parsedUser.id === 'admin') {
           setUser(parsedUser)
+        } else if (parsedUser.role === 'user' && parsedUser.isApproved) {
+          // Only restore approved users
+          setUser(parsedUser)
         } else {
-          // Clear invalid admin data
+          // Clear invalid or unapproved user data
           localStorage.removeItem('user')
         }
       } catch (error) {
@@ -57,29 +72,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const register = async (userData: { name: string; mobile: string; employeeCode: string }) => {
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // For demo purposes, accept any email/password combination for regular users
+      // Check if user already exists
+      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]')
+      const existingUser = existingUsers.find((u: User) => 
+        u.employeeCode === userData.employeeCode || u.mobile === userData.mobile
+      )
+
+      if (existingUser) {
+        throw new Error('User with this employee code or mobile number already exists')
+      }
+
+      // Create new user (pending approval)
       const newUser: User = {
-        id: '1',
-        email,
-        name: email.split('@')[0],
+        id: `user_${Date.now()}`,
+        name: userData.name,
+        mobile: userData.mobile,
+        employeeCode: userData.employeeCode,
         role: 'user',
-        isActive: true,
-        lastLogin: new Date().toISOString(),
+        isActive: false,
+        isApproved: false,
+        createdAt: new Date().toISOString(),
         filesUploaded: 0,
         storageUsed: '0 MB'
       }
-      
-      setUser(newUser)
-      localStorage.setItem('user', JSON.stringify(newUser))
+
+      // Save to users list
+      existingUsers.push(newUser)
+      localStorage.setItem('users', JSON.stringify(existingUsers))
+
+      // Don't log in automatically - user needs admin approval
+      toast.success('Registration successful! Please wait for admin approval.')
+    } catch (error) {
+      console.error('Registration error:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const login = async (employeeCode: string, password: string) => {
+    setIsLoading(true)
+    try {
+      // Get users from localStorage
+      const users = JSON.parse(localStorage.getItem('users') || '[]')
+      const user = users.find((u: User) => u.employeeCode === employeeCode)
+
+      if (!user) {
+        throw new Error('User not found')
+      }
+
+      if (!user.isApproved) {
+        throw new Error('Your account is pending admin approval')
+      }
+
+      if (!user.isActive) {
+        throw new Error('Your account has been terminated')
+      }
+
+      // For demo purposes, accept any password for approved users
+      // In production, you'd verify against stored password hash
+      const updatedUser = {
+        ...user,
+        lastLogin: new Date().toISOString()
+      }
+
+      // Update user in storage
+      const updatedUsers = users.map((u: User) => 
+        u.id === user.id ? updatedUser : u
+      )
+      localStorage.setItem('users', JSON.stringify(updatedUsers))
+
+      setUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
     } catch (error) {
       console.error('Login error:', error)
-      throw new Error('Login failed')
+      throw error
     } finally {
       setIsLoading(false)
     }
@@ -98,11 +168,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Create admin user
       const adminUser: User = {
         id: 'admin',
-        email: 'admin@certitude.com',
         name: 'Administrator',
+        mobile: 'admin',
+        employeeCode: 'ADMIN001',
         role: 'admin',
         isActive: true,
-        lastLogin: new Date().toISOString()
+        isApproved: true,
+        lastLogin: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       }
       
       setUser(adminUser)
@@ -139,48 +212,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Access denied')
     }
 
-    // Get users from localStorage or return demo data
+    // Get users from localStorage
     const savedUsers = localStorage.getItem('users')
     if (savedUsers) {
       return JSON.parse(savedUsers)
     }
 
-    // Demo users
-    const demoUsers: User[] = [
-      {
-        id: '1',
-        email: 'user1@certitude.com',
-        name: 'John Doe',
-        role: 'user',
-        isActive: true,
-        lastLogin: '2025-08-04T10:30:00Z',
-        filesUploaded: 23,
-        storageUsed: '800 MB'
-      },
-      {
-        id: '2',
-        email: 'user2@certitude.com',
-        name: 'Jane Smith',
-        role: 'user',
-        isActive: true,
-        lastLogin: '2025-08-04T09:15:00Z',
-        filesUploaded: 12,
-        storageUsed: '400 MB'
-      },
-      {
-        id: '3',
-        email: 'user3@certitude.com',
-        name: 'Bob Johnson',
-        role: 'user',
-        isActive: false,
-        lastLogin: '2025-08-03T16:45:00Z',
-        filesUploaded: 8,
-        storageUsed: '200 MB'
-      }
-    ]
+    // Return empty array if no users
+    return []
+  }
 
-    localStorage.setItem('users', JSON.stringify(demoUsers))
-    return demoUsers
+  const approveUser = async (userId: string) => {
+    if (!isAdmin) {
+      throw new Error('Access denied')
+    }
+
+    const users = await getUsers()
+    const updatedUsers = users.map(user => 
+      user.id === userId 
+        ? { 
+            ...user, 
+            isApproved: true, 
+            isActive: true,
+            approvedBy: 'admin',
+            approvedAt: new Date().toISOString()
+          } 
+        : user
+    )
+    
+    localStorage.setItem('users', JSON.stringify(updatedUsers))
+  }
+
+  const rejectUser = async (userId: string) => {
+    if (!isAdmin) {
+      throw new Error('Access denied')
+    }
+
+    const users = await getUsers()
+    const updatedUsers = users.filter(user => user.id !== userId)
+    
+    localStorage.setItem('users', JSON.stringify(updatedUsers))
   }
 
   const terminateUser = async (userId: string) => {
@@ -223,7 +294,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       return {
         totalUsers: users.length,
-        activeUsers: users.filter(u => u.isActive).length,
+        activeUsers: users.filter(u => u.isActive && u.isApproved).length,
+        pendingUsers: users.filter(u => !u.isApproved).length,
         totalFiles: stats.total_files || 0,
         totalStorage: stats.total_storage || '0 MB',
         fileTypeStats: stats.file_type_stats || {},
@@ -236,7 +308,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const users = await getUsers()
       return {
         totalUsers: users.length,
-        activeUsers: users.filter(u => u.isActive).length,
+        activeUsers: users.filter(u => u.isActive && u.isApproved).length,
+        pendingUsers: users.filter(u => !u.isApproved).length,
         totalFiles: 0,
         totalStorage: '0 MB',
         fileTypeStats: {},
@@ -250,12 +323,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       user,
       isAdmin,
+      isAuthenticated,
+      register,
       login,
       adminLogin,
       logout,
       isLoading,
       changeAdminPassword,
       getUsers,
+      approveUser,
+      rejectUser,
       terminateUser,
       activateUser,
       getSystemStats
