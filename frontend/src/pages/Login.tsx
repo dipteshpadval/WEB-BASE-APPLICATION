@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import { Hash, Lock, Eye, EyeOff, ArrowLeft, UserCheck, UserPlus, Phone, User } from 'lucide-react'
@@ -24,6 +24,14 @@ export default function Login() {
     mobile: '',
     employeeCode: ''
   })
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔐 Login page loaded successfully!')
+    console.log('📍 Current URL:', window.location.href)
+    console.log('🎯 Active tab:', activeTab)
+    console.log('👤 Auth context loaded:', !!login && !!register)
+  }, [activeTab, login, register])
 
   const validateLoginForm = () => {
     const newErrors: Record<string, string> = {}
@@ -68,6 +76,8 @@ export default function Login() {
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('🔐 Login attempt:', { employeeCode: loginData.employeeCode })
+    
     if (!validateLoginForm()) {
       return
     }
@@ -77,12 +87,15 @@ export default function Login() {
       toast.success('Login successful!')
       navigate('/')
     } catch (error: any) {
+      console.error('❌ Login error:', error)
       toast.error(error.message || 'Login failed')
     }
   }
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    console.log('📝 Registration attempt:', registerData)
     
     if (!validateRegisterForm()) {
       return
@@ -94,6 +107,7 @@ export default function Login() {
       setActiveTab('login')
       setRegisterData({ name: '', mobile: '', employeeCode: '' })
     } catch (error: any) {
+      console.error('❌ Registration error:', error)
       toast.error(error.message || 'Registration failed')
     }
   }
@@ -118,6 +132,7 @@ export default function Login() {
         <div className="text-center p-4 bg-green-500/20 border border-green-500/30 rounded-xl">
           <p className="text-green-300 text-sm font-medium">✅ NEW LOGIN PAGE LOADED - Version 2.0</p>
           <p className="text-green-300 text-xs mt-1">If you see this message, the new login page is working!</p>
+          <p className="text-green-300 text-xs mt-1">URL: {window.location.href}</p>
         </div>
 
         {/* Header */}

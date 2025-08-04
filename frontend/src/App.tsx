@@ -17,6 +17,20 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 // Create a client
 const queryClient = new QueryClient()
 
+// Test Component
+function TestPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+      <div className="text-center text-white">
+        <h1 className="text-4xl font-bold mb-4">✅ Routing Test Page</h1>
+        <p className="text-xl mb-4">If you see this, routing is working!</p>
+        <p className="text-sm">URL: {window.location.href}</p>
+        <p className="text-sm">Time: {new Date().toLocaleString()}</p>
+      </div>
+    </div>
+  )
+}
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -62,9 +76,15 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppContent() {
+  console.log('🚀 AppContent rendered')
+  console.log('📍 Current pathname:', window.location.pathname)
+  
   return (
     <Router>
       <Routes>
+        {/* Test Route */}
+        <Route path="/test" element={<TestPage />} />
+        
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         
@@ -100,6 +120,8 @@ function AppContent() {
 }
 
 function App() {
+  console.log('🚀 App component rendered')
+  
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
