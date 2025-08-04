@@ -14,7 +14,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      connectSrc: ["'self'", "http://localhost:3000", "http://192.168.29.211:3000", "http://192.168.29.32:3000", "https://certitudetech.netlify.app"],
+      connectSrc: ["'self'", "http://localhost:3000", "http://192.168.29.211:3000", "http://192.168.29.32:3000", "https://certitudetech.netlify.app", "https://web-base-application.onrender.com"],
       imgSrc: ["'self'", "data:", "https:"],
       fontSrc: ["'self'", "https:"],
     },
@@ -28,7 +28,8 @@ app.use(cors({
     "http://192.168.29.211:3000",
     "http://192.168.29.32:3000",
     "http://localhost:3000",
-    "https://certitudetech.netlify.app"  // Add your Netlify domain
+    "https://certitudetech.netlify.app",
+    "https://web-base-application.onrender.com"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -56,7 +57,18 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    cors: 'enabled',
+    database: db.getOneDrivePath()
+  });
+});
+
+// Root endpoint for testing
+app.get('/', (req, res) => {
+  res.json({
+    message: 'File Manager API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
   });
 });
 

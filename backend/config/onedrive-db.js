@@ -12,6 +12,15 @@ class OneDriveDB {
     this.folderId = null;
     this.filesDbPath = 'files.json';
     this.statsDbPath = 'stats.json';
+    this.onedrivePath = null;
+  }
+
+  // Get status for compatibility
+  getStatus() {
+    return {
+      found: this.accessToken && this.folderId,
+      onedrivePath: this.onedrivePath || 'OneDrive Database'
+    };
   }
 
   // Initialize OneDrive connection
@@ -40,6 +49,7 @@ class OneDriveDB {
         headers: { 'Authorization': `Bearer ${this.accessToken}` }
       });
       this.folderId = response.data.id;
+      this.onedrivePath = response.data.webUrl;
     } catch (error) {
       if (error.response?.status === 404) {
         // Create folder if it doesn't exist
@@ -51,6 +61,7 @@ class OneDriveDB {
           headers: { 'Authorization': `Bearer ${this.accessToken}` }
         });
         this.folderId = createResponse.data.id;
+        this.onedrivePath = createResponse.data.webUrl;
       } else {
         throw error;
       }

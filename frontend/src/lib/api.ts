@@ -5,11 +5,15 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_URL ||
     ? 'https://web-base-application.onrender.com/api'  // Your actual Render URL
     : 'http://192.168.29.211:5002/api')
 
+console.log('🌐 API Base URL:', API_BASE_URL)
+console.log('📍 Current hostname:', window.location.hostname)
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout
 })
 
 // Add auth token to requests
@@ -20,6 +24,18 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  (response) => {
+    console.log('✅ API Response:', response.config.url, response.status)
+    return response
+  },
+  (error) => {
+    console.error('❌ API Error:', error.config?.url, error.response?.status, error.message)
+    return Promise.reject(error)
+  }
+)
 
 export interface FileStats {
   total_files: number

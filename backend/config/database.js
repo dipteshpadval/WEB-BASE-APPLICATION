@@ -4,7 +4,8 @@ const path = require('path');
 // Try to import OneDrive database, but don't crash if it fails
 let OneDriveFolderDB = null;
 try {
-  OneDriveFolderDB = require('./onedrive-folder-db');
+  const { OneDriveDB } = require('./onedrive-db');
+  OneDriveFolderDB = OneDriveDB;
 } catch (error) {
   console.log('⚠️  OneDrive database not available:', error.message);
 }
