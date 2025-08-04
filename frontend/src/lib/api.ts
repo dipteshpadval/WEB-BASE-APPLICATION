@@ -3,7 +3,7 @@ import axios from 'axios'
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 
   (window.location.hostname === 'certitudetech.netlify.app' 
     ? 'https://web-base-application.onrender.com/api'  // Your actual Render URL
-    : 'http://192.168.29.211:5002/api')
+    : 'http://localhost:5002/api')
 
 console.log('🌐 API Base URL:', API_BASE_URL)
 console.log('📍 Current hostname:', window.location.hostname)
