@@ -141,6 +141,11 @@ function AppContent() {
             <Dashboard />
           </ProtectedRoute>
         } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
         <Route path="/upload" element={
           <ProtectedRoute>
             <FileUpload />

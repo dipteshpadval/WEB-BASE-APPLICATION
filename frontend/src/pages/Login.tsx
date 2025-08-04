@@ -84,16 +84,27 @@ export default function Login() {
     }
 
     try {
+      console.log('🔄 Calling login function...')
       await login(loginData.employeeCode, loginData.password)
+      console.log('✅ Login successful, checking user role...')
+      
+      // Get user from localStorage
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+      console.log('👤 Current user:', currentUser)
+      
       toast.success('Login successful!')
       
-      // Redirect based on user role
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-      if (currentUser.role === 'admin') {
-        navigate('/admin')
-      } else {
-        navigate('/dashboard')
-      }
+      // Use a small delay to ensure state is updated, then redirect
+      setTimeout(() => {
+        if (currentUser.role === 'admin') {
+          console.log('🔄 Redirecting to admin dashboard...')
+          window.location.href = '/admin'
+        } else {
+          console.log('🔄 Redirecting to user dashboard...')
+          window.location.href = '/dashboard'
+        }
+      }, 100)
+      
     } catch (error: any) {
       console.error('❌ Login error:', error)
       toast.error(error.message || 'Login failed')
