@@ -66,17 +66,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const login = async (employeeCode: string, password: string) => {
+    console.log('🔐 AuthContext login called with:', { employeeCode, password: '***' })
     setIsLoading(true)
     try {
+      console.log('📡 Making API call to auth/login...')
       const response = await authAPI.login(employeeCode, password)
+      console.log('✅ API response received:', response)
+      
+      console.log('👤 Setting user state:', response.user)
       setUser(response.user)
+      
+      console.log('💾 Saving user to localStorage...')
       localStorage.setItem('user', JSON.stringify(response.user))
+      
+      console.log('✅ Login process completed successfully')
       toast.success(response.message)
     } catch (error: any) {
-      console.error('Login error:', error)
+      console.error('❌ AuthContext login error:', error)
+      console.error('❌ Error response:', error.response?.data)
       toast.error(error.response?.data?.error || 'Login failed')
       throw error
     } finally {
+      console.log('🏁 Setting loading to false')
       setIsLoading(false)
     }
   }

@@ -80,33 +80,47 @@ export default function Login() {
     console.log('🔐 Login attempt:', { employeeCode: loginData.employeeCode })
     
     if (!validateLoginForm()) {
+      console.log('❌ Form validation failed')
       return
     }
 
     try {
       console.log('🔄 Calling login function...')
+      console.log('📤 Login data:', { employeeCode: loginData.employeeCode, password: '***' })
+      
       await login(loginData.employeeCode, loginData.password)
       console.log('✅ Login successful, checking user role...')
       
       // Get user from localStorage
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-      console.log('👤 Current user:', currentUser)
+      console.log('👤 Current user from localStorage:', currentUser)
       
       toast.success('Login successful!')
       
       // Use a small delay to ensure state is updated, then redirect
+      console.log('⏳ Waiting 100ms before redirect...')
       setTimeout(() => {
+        console.log('🔄 Starting redirect process...')
         if (currentUser.role === 'admin') {
           console.log('🔄 Redirecting to admin dashboard...')
+          console.log('📍 Current URL:', window.location.href)
           window.location.href = '/admin'
+          console.log('✅ Admin redirect initiated')
         } else {
           console.log('🔄 Redirecting to user dashboard...')
+          console.log('📍 Current URL:', window.location.href)
           window.location.href = '/dashboard'
+          console.log('✅ User redirect initiated')
         }
       }, 100)
       
     } catch (error: any) {
       console.error('❌ Login error:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
       toast.error(error.message || 'Login failed')
     }
   }
