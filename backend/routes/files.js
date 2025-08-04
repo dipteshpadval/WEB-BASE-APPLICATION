@@ -7,7 +7,7 @@ const { body, query, validationResult } = require('express-validator');
 // const { uploadFile, generateSignedUrl, deleteFile } = require('../config/aws');
 // const { authenticateToken, requireRole, ROLES } = require('../middleware/auth');
 
-const { db } = require('../config/database');
+const db = require('../config/database');
 
 const router = express.Router();
 
