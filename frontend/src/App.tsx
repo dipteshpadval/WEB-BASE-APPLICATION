@@ -69,6 +69,25 @@ function HomePage() {
   )
 }
 
+// Debug Page
+function DebugPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-900 via-purple-900 to-indigo-900">
+      <div className="text-center text-white">
+        <h1 className="text-4xl font-bold mb-4">🐛 Debug Page</h1>
+        <p className="text-xl mb-4">Deployment Test - If you see this, the app is deployed!</p>
+        <p className="text-sm mb-4">URL: {window.location.href}</p>
+        <p className="text-sm mb-6">Time: {new Date().toLocaleString()}</p>
+        <div className="space-y-2">
+          <a href="/home" className="block text-blue-300 hover:text-blue-100 underline">🏠 Home Page</a>
+          <a href="/login" className="block text-green-300 hover:text-green-100 underline">🔐 Login Page</a>
+          <a href="/test" className="block text-yellow-300 hover:text-yellow-100 underline">🧪 Test Route</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -106,6 +125,9 @@ function AppContent() {
   return (
     <Router>
       <Routes>
+        {/* Debug Route */}
+        <Route path="/debug" element={<DebugPage />} />
+        
         {/* Test Route */}
         <Route path="/test" element={<TestPage />} />
         
@@ -138,7 +160,7 @@ function AppContent() {
         } />
         
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<Navigate to="/debug" replace />} />
       </Routes>
     </Router>
   )
