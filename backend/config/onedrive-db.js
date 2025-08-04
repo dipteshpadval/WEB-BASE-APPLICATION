@@ -43,6 +43,10 @@ class OneDriveDB {
 
   // Ensure the database folder exists in OneDrive
   async ensureFolderExists() {
+    if (!this.accessToken) {
+      throw new Error('No OneDrive access token available');
+    }
+
     try {
       // Check if folder exists
       const response = await axios.get(`${ONEDRIVE_API_BASE}/root:/${ONEDRIVE_FOLDER}`, {
@@ -70,6 +74,10 @@ class OneDriveDB {
 
   // Upload file to OneDrive
   async uploadFile(filePath, content) {
+    if (!this.accessToken || !this.folderId) {
+      throw new Error('OneDrive not properly initialized');
+    }
+
     try {
       const response = await axios.put(
         `${ONEDRIVE_API_BASE}/items/${this.folderId}:/${filePath}:/content`,
@@ -90,6 +98,10 @@ class OneDriveDB {
 
   // Download file from OneDrive
   async downloadFile(filePath) {
+    if (!this.accessToken || !this.folderId) {
+      throw new Error('OneDrive not properly initialized');
+    }
+
     try {
       const response = await axios.get(
         `${ONEDRIVE_API_BASE}/items/${this.folderId}:/${filePath}:/content`,
@@ -100,103 +112,161 @@ class OneDriveDB {
       return response.data;
     } catch (error) {
       if (error.response?.status === 404) {
-        return null; // File doesn't exist
+        // File doesn't exist, return empty data
+        return [];
       }
       console.error('OneDrive download error:', error.message);
       throw error;
     }
   }
 
-  // Database operations
+  // Get files from OneDrive
   async getFiles() {
     try {
       const data = await this.downloadFile(this.filesDbPath);
-      return data ? JSON.parse(data) : [];
+      return Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error('Error reading files from OneDrive:', error);
+      console.error('Error getting files from OneDrive:', error.message);
       return [];
     }
   }
 
+  // Save files to OneDrive
   async saveFiles(files) {
     try {
       await this.uploadFile(this.filesDbPath, JSON.stringify(files, null, 2));
+      return true;
     } catch (error) {
-      console.error('Error saving files to OneDrive:', error);
+      console.error('Error saving files to OneDrive:', error.message);
+      return false;
     }
   }
 
+  // Add file to OneDrive
   async addFile(file) {
-    const files = await this.getFiles();
-    files.push(file);
-    await this.saveFiles(files);
-    return file;
+    try {
+      const files = await this.getFiles();
+      files.push(file);
+      return await this.saveFiles(files);
+    } catch (error) {
+      console.error('Error adding file to OneDrive:', error.message);
+      return false;
+    }
   }
 
+  // Remove file from OneDrive
   async removeFile(id) {
-    const files = await this.getFiles();
-    const filteredFiles = files.filter(f => f.id !== id);
-    await this.saveFiles(filteredFiles);
-    return files.length - filteredFiles.length > 0;
+    try {
+      const files = await this.getFiles();
+      const updatedFiles = files.filter(file => file.id !== id);
+      return await this.saveFiles(updatedFiles);
+    } catch (error) {
+      console.error('Error removing file from OneDrive:', error.message);
+      return false;
+    }
   }
 
+  // Get stats from OneDrive
   async getStats() {
     try {
       const data = await this.downloadFile(this.statsDbPath);
-      return data ? JSON.parse(data) : {
-        total_files: 0,
-        file_type_stats: {},
-        asset_type_stats: {},
-        client_code_stats: {},
-        monthly_stats: {}
-      };
+      if (Array.isArray(data) || !data) {
+        // Return default stats if no data or wrong format
+        return {
+          total_files: 0,
+          total_storage: '0 MB',
+          file_type_stats: {},
+          client_code_stats: {},
+          asset_type_stats: {},
+          monthly_stats: {}
+        };
+      }
+      return data;
     } catch (error) {
-      console.error('Error reading stats from OneDrive:', error);
+      console.error('Error getting stats from OneDrive:', error.message);
       return {
         total_files: 0,
+        total_storage: '0 MB',
         file_type_stats: {},
-        asset_type_stats: {},
         client_code_stats: {},
+        asset_type_stats: {},
         monthly_stats: {}
       };
     }
   }
 
+  // Save stats to OneDrive
   async saveStats(stats) {
     try {
       await this.uploadFile(this.statsDbPath, JSON.stringify(stats, null, 2));
+      return true;
     } catch (error) {
-      console.error('Error saving stats to OneDrive:', error);
+      console.error('Error saving stats to OneDrive:', error.message);
+      return false;
     }
   }
 
-  async updateStats() {
-    const files = await this.getFiles();
-    const stats = {
-      total_files: files.length,
-      file_type_stats: {},
-      asset_type_stats: {},
-      client_code_stats: {},
-      monthly_stats: {}
-    };
-
-    files.forEach(file => {
-      // File type stats
-      stats.file_type_stats[file.file_type] = (stats.file_type_stats[file.file_type] || 0) + 1;
+  // Update stats in OneDrive
+  async updateStats(newFileData) {
+    try {
+      const stats = await this.getStats();
+      const files = await this.getFiles();
       
-      // Asset type stats
-      stats.asset_type_stats[file.asset_type] = (stats.asset_type_stats[file.asset_type] || 0) + 1;
+      // Update stats based on current files
+      stats.total_files = files.length;
       
-      // Client code stats
-      stats.client_code_stats[file.client_code] = (stats.client_code_stats[file.client_code] || 0) + 1;
+      // Calculate total storage
+      let totalStorage = 0;
+      files.forEach(file => {
+        totalStorage += file.size || 102400; // Default 100KB
+      });
       
-      // Monthly stats
-      const month = new Date(file.uploaded_at).toISOString().slice(0, 7);
-      stats.monthly_stats[month] = (stats.monthly_stats[month] || 0) + 1;
-    });
-
-    await this.saveStats(stats);
-    return stats;
+      // Convert to human readable format
+      const formatStorage = (bytes) => {
+        if (bytes === 0) return '0 MB';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      };
+      
+      stats.total_storage = formatStorage(totalStorage);
+      
+      // Update file type stats
+      stats.file_type_stats = {};
+      files.forEach(file => {
+        const fileType = file.fileType || 'Unknown';
+        stats.file_type_stats[fileType] = (stats.file_type_stats[fileType] || 0) + 1;
+      });
+      
+      // Update client code stats
+      stats.client_code_stats = {};
+      files.forEach(file => {
+        const clientCode = file.clientCode || 'Unknown';
+        stats.client_code_stats[clientCode] = (stats.client_code_stats[clientCode] || 0) + 1;
+      });
+      
+      // Update asset type stats
+      stats.asset_type_stats = {};
+      files.forEach(file => {
+        const assetType = file.assetType || 'Unknown';
+        stats.asset_type_stats[assetType] = (stats.asset_type_stats[assetType] || 0) + 1;
+      });
+      
+      // Update monthly stats
+      stats.monthly_stats = {};
+      files.forEach(file => {
+        if (file.fileDate) {
+          const month = file.fileDate.substring(0, 7); // YYYY-MM
+          stats.monthly_stats[month] = (stats.monthly_stats[month] || 0) + 1;
+        }
+      });
+      
+      return await this.saveStats(stats);
+    } catch (error) {
+      console.error('Error updating stats in OneDrive:', error.message);
+      return false;
+    }
   }
 }
 

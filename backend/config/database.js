@@ -26,9 +26,11 @@ class Database {
       // Try to initialize OneDrive database
       if (OneDriveFolderDB) {
         this.oneDriveDb = new OneDriveFolderDB();
+        
+        // Check if OneDrive is properly configured
         const oneDriveStatus = this.oneDriveDb.getStatus();
         
-        if (oneDriveStatus.found) {
+        if (oneDriveStatus.found && this.oneDriveDb.accessToken) {
           this.useOneDrive = true;
           console.log('✅ OneDrive folder found:', oneDriveStatus.onedrivePath);
           return true;
@@ -68,7 +70,12 @@ class Database {
 
   getFiles() {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.getFiles();
+      try {
+        return this.oneDriveDb.getFiles();
+      } catch (error) {
+        console.error('OneDrive getFiles failed, falling back to local:', error.message);
+        return this.getLocalFiles();
+      }
     } else {
       return this.getLocalFiles();
     }
@@ -76,7 +83,12 @@ class Database {
 
   saveFiles(files) {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.saveFiles(files);
+      try {
+        return this.oneDriveDb.saveFiles(files);
+      } catch (error) {
+        console.error('OneDrive saveFiles failed, falling back to local:', error.message);
+        return this.saveLocalFiles(files);
+      }
     } else {
       return this.saveLocalFiles(files);
     }
@@ -84,7 +96,12 @@ class Database {
 
   addFile(fileData) {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.addFile(fileData);
+      try {
+        return this.oneDriveDb.addFile(fileData);
+      } catch (error) {
+        console.error('OneDrive addFile failed, falling back to local:', error.message);
+        return this.addLocalFile(fileData);
+      }
     } else {
       return this.addLocalFile(fileData);
     }
@@ -92,7 +109,12 @@ class Database {
 
   removeFile(fileId) {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.removeFile(fileId);
+      try {
+        return this.oneDriveDb.removeFile(fileId);
+      } catch (error) {
+        console.error('OneDrive removeFile failed, falling back to local:', error.message);
+        return this.removeLocalFile(fileId);
+      }
     } else {
       return this.removeLocalFile(fileId);
     }
@@ -100,7 +122,12 @@ class Database {
 
   getStats() {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.getStats();
+      try {
+        return this.oneDriveDb.getStats();
+      } catch (error) {
+        console.error('OneDrive getStats failed, falling back to local:', error.message);
+        return this.getLocalStats();
+      }
     } else {
       return this.getLocalStats();
     }
@@ -108,7 +135,12 @@ class Database {
 
   saveStats(stats) {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.saveStats(stats);
+      try {
+        return this.oneDriveDb.saveStats(stats);
+      } catch (error) {
+        console.error('OneDrive saveStats failed, falling back to local:', error.message);
+        return this.saveLocalStats(stats);
+      }
     } else {
       return this.saveLocalStats(stats);
     }
@@ -116,13 +148,18 @@ class Database {
 
   updateStats(newFileData) {
     if (this.useOneDrive && this.oneDriveDb) {
-      return this.oneDriveDb.updateStats(newFileData);
+      try {
+        return this.oneDriveDb.updateStats(newFileData);
+      } catch (error) {
+        console.error('OneDrive updateStats failed, falling back to local:', error.message);
+        return this.updateLocalStats(newFileData);
+      }
     } else {
       return this.updateLocalStats(newFileData);
     }
   }
 
-  // Local database methods (for production)
+  // Local database methods
   getLocalFiles() {
     try {
       if (fs.existsSync(this.filesPath)) {
@@ -131,7 +168,7 @@ class Database {
       }
       return [];
     } catch (error) {
-      console.error('❌ Error reading local files:', error);
+      console.error('Error reading local files:', error);
       return [];
     }
   }
@@ -141,7 +178,7 @@ class Database {
       fs.writeFileSync(this.filesPath, JSON.stringify(files, null, 2));
       return true;
     } catch (error) {
-      console.error('❌ Error saving local files:', error);
+      console.error('Error saving local files:', error);
       return false;
     }
   }
@@ -151,10 +188,9 @@ class Database {
       const files = this.getLocalFiles();
       files.push(fileData);
       this.saveLocalFiles(files);
-      this.updateLocalStats(fileData);
       return true;
     } catch (error) {
-      console.error('❌ Error adding local file:', error);
+      console.error('Error adding local file:', error);
       return false;
     }
   }
@@ -163,10 +199,13 @@ class Database {
     try {
       const files = this.getLocalFiles();
       const updatedFiles = files.filter(file => file.id !== fileId);
-      this.saveLocalFiles(updatedFiles);
-      return true;
+      if (files.length !== updatedFiles.length) {
+        this.saveLocalFiles(updatedFiles);
+        return true;
+      }
+      return false;
     } catch (error) {
-      console.error('❌ Error removing local file:', error);
+      console.error('Error removing local file:', error);
       return false;
     }
   }
@@ -175,33 +214,24 @@ class Database {
     try {
       if (fs.existsSync(this.statsPath)) {
         const data = fs.readFileSync(this.statsPath, 'utf8');
-        const stats = JSON.parse(data);
-        // Convert property names to match frontend expectations
-        return {
-          total_files: stats.total_files || 0,
-          total_size: stats.total_size || 0,
-          file_type_stats: stats.file_types || {},
-          asset_type_stats: stats.asset_types || {},
-          client_code_stats: stats.client_codes || {},
-          monthly_stats: stats.monthly_stats || {}
-        };
+        return JSON.parse(data);
       }
       return {
         total_files: 0,
-        total_size: 0,
+        total_storage: '0 MB',
         file_type_stats: {},
-        asset_type_stats: {},
         client_code_stats: {},
+        asset_type_stats: {},
         monthly_stats: {}
       };
     } catch (error) {
-      console.error('❌ Error reading local stats:', error);
+      console.error('Error reading local stats:', error);
       return {
         total_files: 0,
-        total_size: 0,
+        total_storage: '0 MB',
         file_type_stats: {},
-        asset_type_stats: {},
         client_code_stats: {},
+        asset_type_stats: {},
         monthly_stats: {}
       };
     }
@@ -212,7 +242,7 @@ class Database {
       fs.writeFileSync(this.statsPath, JSON.stringify(stats, null, 2));
       return true;
     } catch (error) {
-      console.error('❌ Error saving local stats:', error);
+      console.error('Error saving local stats:', error);
       return false;
     }
   }
@@ -220,39 +250,65 @@ class Database {
   updateLocalStats(newFileData) {
     try {
       const stats = this.getLocalStats();
+      const files = this.getLocalFiles();
       
-      stats.total_files += 1;
-      stats.total_size += newFileData.file_size || 0;
+      // Update stats based on current files
+      stats.total_files = files.length;
       
-      // Update file type stats
-      const fileType = newFileData.file_type;
-      stats.file_type_stats[fileType] = (stats.file_type_stats[fileType] || 0) + 1;
+      // Calculate total storage
+      let totalStorage = 0;
+      files.forEach(file => {
+        totalStorage += file.size || 102400; // Default 100KB
+      });
       
-      // Update asset type stats
-      const assetType = newFileData.asset_type;
-      stats.asset_type_stats[assetType] = (stats.asset_type_stats[assetType] || 0) + 1;
-      
-      // Update client code stats
-      const clientCode = newFileData.client_code;
-      stats.client_code_stats[clientCode] = (stats.client_code_stats[clientCode] || 0) + 1;
-      
-      // Save with the original property names for backward compatibility
-      const saveStats = {
-        total_files: stats.total_files,
-        total_size: stats.total_size,
-        file_types: stats.file_type_stats,
-        asset_types: stats.asset_type_stats,
-        client_codes: stats.client_code_stats,
-        monthly_stats: stats.monthly_stats
+      // Convert to human readable format
+      const formatStorage = (bytes) => {
+        if (bytes === 0) return '0 MB';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
       };
       
-      this.saveLocalStats(saveStats);
+      stats.total_storage = formatStorage(totalStorage);
+      
+      // Update file type stats
+      stats.file_type_stats = {};
+      files.forEach(file => {
+        const fileType = file.fileType || 'Unknown';
+        stats.file_type_stats[fileType] = (stats.file_type_stats[fileType] || 0) + 1;
+      });
+      
+      // Update client code stats
+      stats.client_code_stats = {};
+      files.forEach(file => {
+        const clientCode = file.clientCode || 'Unknown';
+        stats.client_code_stats[clientCode] = (stats.client_code_stats[clientCode] || 0) + 1;
+      });
+      
+      // Update asset type stats
+      stats.asset_type_stats = {};
+      files.forEach(file => {
+        const assetType = file.assetType || 'Unknown';
+        stats.asset_type_stats[assetType] = (stats.asset_type_stats[assetType] || 0) + 1;
+      });
+      
+      // Update monthly stats
+      stats.monthly_stats = {};
+      files.forEach(file => {
+        if (file.fileDate) {
+          const month = file.fileDate.substring(0, 7); // YYYY-MM
+          stats.monthly_stats[month] = (stats.monthly_stats[month] || 0) + 1;
+        }
+      });
+      
+      this.saveLocalStats(stats);
       return true;
     } catch (error) {
-      console.error('❌ Error updating local stats:', error);
+      console.error('Error updating local stats:', error);
       return false;
     }
   }
 }
 
-module.exports = new Database(); 
+module.exports = Database; 
