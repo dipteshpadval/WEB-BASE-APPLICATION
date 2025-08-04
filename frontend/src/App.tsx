@@ -10,7 +10,6 @@ import FileUpload from './pages/FileUpload'
 import FileList from './pages/FileList'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
-import Register from './pages/Register'
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -68,7 +67,6 @@ function AppContent() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
         
         {/* Protected Routes */}
         <Route path="/" element={
