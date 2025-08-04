@@ -28,67 +28,65 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
+      <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="container-responsive">
-          <div className="nav-container">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo and title */}
-            <div className="flex items-center justify-between w-full sm:w-auto">
-              <div className="flex items-center">
-                <FileText className="h-8 w-8 text-blue-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">File Manager</span>
-              </div>
-              
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="sm:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 touch-target"
-              >
-                {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
+            <div className="flex items-center">
+              <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+              <span className="ml-2 text-lg sm:text-xl font-bold text-gray-900">File Manager</span>
             </div>
+            
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="sm:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 touch-target"
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
 
             {/* Desktop navigation */}
-            <div className="hidden sm:flex sm:items-center sm:space-x-6">
-              <div className="flex space-x-4">
+            <div className="hidden sm:flex sm:items-center sm:space-x-4 lg:space-x-6">
+              <div className="flex space-x-2 lg:space-x-4">
                 {navigation.map((item) => {
                   const Icon = item.icon
                   return (
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                      className={`flex items-center px-2 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
                         isActive(item.href)
                           ? 'bg-blue-100 text-blue-700'
                           : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      <Icon className="h-4 w-4 mr-2" />
-                      {item.name}
+                      <Icon className="h-4 w-4 mr-1 lg:mr-2" />
+                      <span className="hidden lg:inline">{item.name}</span>
                     </Link>
                   )
                 })}
               </div>
               
               {/* User menu */}
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 lg:space-x-4">
                 {user ? (
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-700">{user.email}</span>
+                  <div className="flex items-center space-x-2 lg:space-x-3">
+                    <span className="text-xs lg:text-sm text-gray-700 hidden md:inline">{user.email}</span>
                     <button
                       onClick={logout}
-                      className="flex items-center px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                      className="flex items-center px-2 py-2 text-xs lg:text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
                     >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Logout</span>
+                      <LogOut className="h-4 w-4 mr-1" />
+                      <span className="hidden lg:inline">Logout</span>
                     </button>
                   </div>
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                    className="flex items-center px-2 py-2 text-xs lg:text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
                   >
-                    <User className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Login</span>
+                    <User className="h-4 w-4 mr-1" />
+                    <span className="hidden lg:inline">Login</span>
                   </Link>
                 )}
               </div>
@@ -97,8 +95,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Mobile navigation */}
           {isMobileMenuOpen && (
-            <div className="sm:hidden">
-              <div className="pt-2 pb-3 space-y-1 border-t border-gray-200">
+            <div className="sm:hidden border-t border-gray-200">
+              <div className="pt-2 pb-3 space-y-1">
                 {navigation.map((item) => {
                   const Icon = item.icon
                   return (
