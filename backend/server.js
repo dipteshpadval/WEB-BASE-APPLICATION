@@ -44,7 +44,8 @@ app.use(cors({
     process.env.FRONTEND_URL || "http://localhost:3000",
     "http://192.168.29.211:3000",
     "http://192.168.29.32:3000",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://certitudetech.netlify.app"  // Add your Netlify domain
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

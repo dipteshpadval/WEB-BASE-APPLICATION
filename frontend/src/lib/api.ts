@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://192.168.29.211:5002/api'
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 
+  (window.location.hostname === 'certitudetech.netlify.app' 
+    ? 'https://excel-file-manager-backend.onrender.com/api'  // Replace with your actual Render URL
+    : 'http://192.168.29.211:5002/api')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
