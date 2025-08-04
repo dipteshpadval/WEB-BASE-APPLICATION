@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from 'react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import FileUpload from './pages/FileUpload'
 import FileList from './pages/FileList'
@@ -23,24 +24,26 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/upload" element={<FileUpload />} />
-              <Route path="/files" element={<FileList />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/users" element={<UserManagement />} />
-              <Route path="/admin" element={<Admin />} />
-            </Routes>
-          </Layout>
-        </Router>
-        <Toaster position="top-right" />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Router>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/upload" element={<FileUpload />} />
+                <Route path="/files" element={<FileList />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/users" element={<UserManagement />} />
+                <Route path="/admin" element={<Admin />} />
+              </Routes>
+            </Layout>
+          </Router>
+          <Toaster position="top-right" />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 
