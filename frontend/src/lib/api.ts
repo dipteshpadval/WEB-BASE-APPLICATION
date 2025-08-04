@@ -27,6 +27,10 @@ export interface FileStats {
   client_code_stats: Record<string, number>
   asset_type_stats: Record<string, number>
   monthly_stats: Record<string, number>
+  // Backward compatibility with old property names
+  file_types?: Record<string, number>
+  client_codes?: Record<string, number>
+  asset_types?: Record<string, number>
 }
 
 export interface File {

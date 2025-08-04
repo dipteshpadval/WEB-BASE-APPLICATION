@@ -74,7 +74,7 @@ export default function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">File Types</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {Object.keys(stats?.file_type_stats || {}).length}
+                  {Object.keys(stats?.file_type_stats || stats?.file_types || {}).length}
                 </p>
               </div>
             </div>
@@ -90,7 +90,7 @@ export default function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Client Codes</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {Object.keys(stats?.client_code_stats || {}).length}
+                  {Object.keys(stats?.client_code_stats || stats?.client_codes || {}).length}
                 </p>
               </div>
             </div>
@@ -106,7 +106,7 @@ export default function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Asset Types</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {Object.keys(stats?.asset_type_stats || {}).length}
+                  {Object.keys(stats?.asset_type_stats || stats?.asset_types || {}).length}
                 </p>
               </div>
             </div>
@@ -121,9 +121,10 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-900">File Type Distribution</h3>
           </div>
           <div className="card-content">
-            {stats?.file_type_stats && Object.keys(stats.file_type_stats).length > 0 ? (
+            {(stats?.file_type_stats && Object.keys(stats.file_type_stats).length > 0) || 
+             (stats?.file_types && Object.keys(stats.file_types).length > 0) ? (
               <div className="space-y-3">
-                {Object.entries(stats.file_type_stats).map(([type, count]) => (
+                {Object.entries(stats?.file_type_stats || stats?.file_types || {}).map(([type, count]) => (
                   <div key={type} className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">{type}</span>
                     <div className="flex items-center">
