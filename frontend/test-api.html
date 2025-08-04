@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Connection Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        async function testAPI() {
+            try {
+                // Test Render backend
+                console.log('Testing Render backend...');
+                const response = await fetch('https://web-base-application.onrender.com/api/health');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML += `
+                    <h3>✅ Render Backend Test</h3>
+                    <p>Status: ${response.status}</p>
+                    <p>Data: ${JSON.stringify(data, null, 2)}</p>
+                `;
+                
+                console.log('Render backend test successful:', data);
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <h3>❌ Render Backend Test Failed</h3>
+                    <p>Error: ${error.message}</p>
+                `;
+                console.error('Render backend test failed:', error);
+            }
+            
+            try {
+                // Test local backend
+                console.log('Testing local backend...');
+                const localResponse = await fetch('http://192.168.29.211:5002/api/health');
+                const localData = await localResponse.json();
+                
+                resultsDiv.innerHTML += `
+                    <h3>✅ Local Backend Test</h3>
+                    <p>Status: ${localResponse.status}</p>
+                    <p>Data: ${JSON.stringify(localData, null, 2)}</p>
+                `;
+                
+                console.log('Local backend test successful:', localData);
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <h3>❌ Local Backend Test Failed</h3>
+                    <p>Error: ${error.message}</p>
+                `;
+                console.error('Local backend test failed:', error);
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html> 

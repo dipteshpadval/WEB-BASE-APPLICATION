@@ -5,8 +5,8 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
-import FileList from './pages/FileList'
 import FileUpload from './pages/FileUpload'
+import FileList from './pages/FileList'
 import Login from './pages/Login'
 import Profile from './pages/Profile'
 import UserManagement from './pages/UserManagement'
@@ -29,8 +29,8 @@ function App() {
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/files" element={<FileList />} />
               <Route path="/upload" element={<FileUpload />} />
+              <Route path="/files" element={<FileList />} />
               <Route path="/login" element={<Login />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/users" element={<UserManagement />} />
