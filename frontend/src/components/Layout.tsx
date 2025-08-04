@@ -9,7 +9,8 @@ import {
   BarChart3, 
   User,
   LogOut,
-  Home
+  Home,
+  Shield
 } from 'lucide-react'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Files', href: '/files', icon: FileText },
     { name: 'Upload', href: '/upload', icon: Upload },
+    { name: 'Admin', href: '/admin', icon: Shield },
   ]
 
   const isActive = (path: string) => location.pathname === path
