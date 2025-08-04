@@ -53,21 +53,20 @@ app.use('/api/users', require('./routes/users'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-  });
-}
+// Remove static file serving since frontend is deployed separately
+// app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// Catch-all handler for API routes
+app.get('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
