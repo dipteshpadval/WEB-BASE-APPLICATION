@@ -313,20 +313,21 @@ router.get('/stats', async (req, res) => {
       totalStorage += file.size || 102400 // 100KB default
 
       // File type stats
-      const fileType = file.fileType || 'Unknown'
+      const fileType = file.file_type || file.fileType || 'Unknown'
       fileTypeStats[fileType] = (fileTypeStats[fileType] || 0) + 1
 
       // Client code stats
-      const clientCode = file.clientCode || 'Unknown'
+      const clientCode = file.client_code || file.clientCode || 'Unknown'
       clientCodeStats[clientCode] = (clientCodeStats[clientCode] || 0) + 1
 
       // Asset type stats
-      const assetType = file.assetType || 'Unknown'
+      const assetType = file.asset_type || file.assetType || 'Unknown'
       assetTypeStats[assetType] = (assetTypeStats[assetType] || 0) + 1
 
       // Monthly stats
-      if (file.fileDate) {
-        const month = file.fileDate.substring(0, 7) // YYYY-MM
+      if (file.file_date || file.fileDate) {
+        const dateStr = file.file_date || file.fileDate;
+        const month = dateStr.substring(0, 7) // YYYY-MM
         monthlyStats[month] = (monthlyStats[month] || 0) + 1
       }
     })
