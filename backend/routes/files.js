@@ -55,7 +55,7 @@ router.post('/upload',
   // requireRole([ROLES.ADMIN, ROLES.UPLOADER]),
   upload.single('file'),
   [
-    body('fileType').isIn(['Holding', 'Offsite', 'Client Query', 'Value Price', 'Report', 'Analysis']),
+    body('fileType').isIn(['WORKING', 'REPORT', 'SCHEME MASTER', 'DATA']),
     body('assetType').notEmpty().trim(),
     body('clientCode').notEmpty().trim()
   ],
