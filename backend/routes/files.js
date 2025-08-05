@@ -367,4 +367,27 @@ router.get('/db-status', async (req, res) => {
   }
 });
 
+// GET /options - Return fileTypes, assetTypes, clientCodes
+const fs = require('fs');
+const path = require('path');
+
+router.get('/options', (req, res) => {
+  try {
+    const optionsPath = path.join(__dirname, '../data/options.json');
+    if (!fs.existsSync(optionsPath)) {
+      return res.status(404).json({ error: 'Options file not found' });
+    }
+    const data = fs.readFileSync(optionsPath, 'utf8');
+    const options = JSON.parse(data);
+    res.json({
+      fileTypes: options.fileTypes || [],
+      assetTypes: options.assetTypes || [],
+      clientCodes: options.clientCodes || []
+    });
+  } catch (error) {
+    console.error('Error reading options:', error);
+    res.status(500).json({ error: 'Failed to load options' });
+  }
+});
+
 module.exports = router; 
