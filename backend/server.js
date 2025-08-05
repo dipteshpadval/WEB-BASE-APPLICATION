@@ -23,15 +23,22 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || "http://localhost:3000",
-    "http://192.168.29.211:3000",
-    "http://192.168.29.32:3000",
-    "http://localhost:3000",
-    "https://certitudetech.netlify.app",
-    "https://web-base-application.onrender.com",
-    "https://your-netlify-app.netlify.app"  // Add your Netlify app URL
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "http://192.168.29.211:3000",
+      "http://192.168.29.32:3000",
+      "http://localhost:3000",
+      "https://certitudetech.netlify.app",
+      "https://web-base-application.onrender.com",
+      "https://your-netlify-app.netlify.app"
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-user']
