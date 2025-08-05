@@ -29,11 +29,12 @@ app.use(cors({
     "http://192.168.29.32:3000",
     "http://localhost:3000",
     "https://certitudetech.netlify.app",
-    "https://web-base-application.onrender.com"
+    "https://web-base-application.onrender.com",
+    "https://your-netlify-app.netlify.app"  // Add your Netlify app URL
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-user']
 }));
 
 // Body parsing middleware
@@ -51,7 +52,7 @@ try {
 
 // Routes
 app.use('/api/files', require('./routes/files'));
-app.use('/api/auth', require('./routes/auth'));
+app.use('/api/auth', require('./routes/auth').router);
 app.use('/api/users', require('./routes/users'));
 
 // Health check endpoint

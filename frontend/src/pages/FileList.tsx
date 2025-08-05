@@ -1,48 +1,44 @@
 import React, { useState } from 'react'
 import { useQuery } from 'react-query'
-import { filesAPI } from '../lib/api'
-import { Download, Search, Filter, Calendar, FileText, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { filesAPI, type File } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
+import { 
+  FileText, 
+  Search, 
+  Filter, 
+  Download, 
+  Trash2,
+  Calendar,
+  Home,
+  Upload,
+  Shield,
+  LogOut,
+  User,
+  X
+} from 'lucide-react'
 import { format } from 'date-fns'
-import { getClientCodes } from '../lib/clientCodes'
 import toast from 'react-hot-toast'
 
 export default function FileList() {
+  const { user, logout } = useAuth()
+  const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    fileType: '',
+    fileDateFrom: '',
+    fileDateTo: '',
+    fileType: 'All File Types',
     assetType: '',
-    clientCode: '',
-    search: '',
-    page: 1
+    clientCode: 'All Client Codes'
   })
 
-  const [showFilters, setShowFilters] = useState(false)
-  const clientCodes = getClientCodes()
-
-  const { data: filesData, isLoading } = useQuery(
-    ['files', filters],
-    () => filesAPI.getAll(filters),
-    { keepPreviousData: true }
+  const { data: filesData, isLoading, refetch } = useQuery(
+    ['files', searchTerm, filters],
+    () => filesAPI.getAll({ search: searchTerm })
   )
 
-  const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({ ...prev, [field]: value, page: 1 }))
-  }
+  const files = filesData?.files || []
 
-  const clearFilters = () => {
-    setFilters({
-      startDate: '',
-      endDate: '',
-      fileType: '',
-      assetType: '',
-      clientCode: '',
-      search: '',
-      page: 1
-    })
-  }
-
-  const downloadFile = async (fileId: string, filename: string) => {
+  const handleDownload = async (fileId: string, filename: string) => {
     try {
       const blob = await filesAPI.download(fileId)
       const url = window.URL.createObjectURL(blob)
@@ -53,252 +49,242 @@ export default function FileList() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-      toast.success('File downloaded successfully!')
+      toast.success('File downloaded successfully')
     } catch (error) {
       console.error('Download error:', error)
       toast.error('Failed to download file')
     }
   }
 
-  const quickFilter = (type: 'today' | 'week') => {
-    const today = new Date()
-    const startDate = type === 'today' 
-      ? today.toISOString().split('T')[0]
-      : new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    
-    setFilters(prev => ({
-      ...prev,
-      startDate,
-      endDate: today.toISOString().split('T')[0],
-      page: 1
-    }))
+  const handleDelete = async (fileId: string) => {
+    if (window.confirm('Are you sure you want to delete this file?')) {
+      try {
+        await filesAPI.delete(fileId)
+        toast.success('File deleted successfully')
+        refetch()
+      } catch (error) {
+        console.error('Delete error:', error)
+        toast.error('Failed to delete file')
+      }
+    }
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      fileDateFrom: '',
+      fileDateTo: '',
+      fileType: 'All File Types',
+      assetType: '',
+      clientCode: 'All Client Codes'
+    })
   }
 
   return (
-    <div className="space-responsive">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-responsive-lg font-bold text-gray-900">File Management</h1>
-        <p className="text-responsive-sm text-gray-600 mt-1">Browse and download your uploaded files</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+      {/* Navigation Bar */}
+      <nav className="bg-white/10 backdrop-blur-sm border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white rounded-lg">
+                  <FileText className="h-6 w-6 text-purple-600" />
+                </div>
+                <span className="text-white font-semibold text-lg">File Manager</span>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link to="/dashboard" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <Home className="h-4 w-4" />
+                <span>Dashboard</span>
+              </Link>
+              <Link to="/files" className="flex items-center space-x-2 text-white bg-purple-500 px-3 py-1 rounded-lg">
+                <FileText className="h-4 w-4" />
+                <span>Files</span>
+              </Link>
+              <Link to="/upload" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <Upload className="h-4 w-4" />
+                <span>Upload</span>
+              </Link>
+              <Link to="/admin" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <Shield className="h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+              <div className="flex items-center space-x-2 text-white">
+                <User className="h-4 w-4" />
+                <span>{user?.name || 'admin@certitude.com'}</span>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center space-x-2 text-white hover:text-red-200 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
 
-      {/* Search and Filters */}
-      <div className="card mb-6 sm:mb-8">
-        <div className="card-content">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">File Management</h1>
+          <p className="text-white/80">Browse and download your uploaded files</p>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
           {/* Search Bar */}
-          <div className="mb-4">
+          <div className="mb-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search files..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="input pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
             </div>
           </div>
 
-          {/* Filter Toggle for Mobile */}
-          <div className="sm:hidden mb-4">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn btn-secondary w-full touch-target"
+          {/* Quick Filter Buttons */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
+              Today's Files
+            </button>
+            <button className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
+              This Week's Files
+            </button>
+            <button 
+              onClick={clearFilters}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              <Filter className="h-4 w-4 mr-2" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
+              Clear Filters
             </button>
           </div>
 
-          {/* Filters */}
-          <div className={`space-y-4 ${showFilters ? 'block' : 'hidden sm:block'}`}>
-            {/* Quick Filters */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => quickFilter('today')}
-                className="btn btn-secondary text-xs touch-target"
-              >
-                Today's Files
-              </button>
-              <button
-                onClick={() => quickFilter('week')}
-                className="btn btn-secondary text-xs touch-target"
-              >
-                This Week's Files
-              </button>
-              <button
-                onClick={clearFilters}
-                className="btn btn-secondary text-xs touch-target"
-              >
-                Clear Filters
-              </button>
-            </div>
-
-            {/* Date Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-responsive-sm font-medium text-gray-700 mb-1">
-                  File Date From
-                </label>
+          {/* Detailed Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">File Date From</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="date"
-                  value={filters.startDate}
-                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                  className="input"
-                  title="Filter files by file date from this date"
-                />
-              </div>
-              <div>
-                <label className="block text-responsive-sm font-medium text-gray-700 mb-1">
-                  File Date To
-                </label>
-                <input
-                  type="date"
-                  value={filters.endDate}
-                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                  className="input"
-                  title="Filter files by file date until this date"
+                  value={filters.fileDateFrom}
+                  onChange={(e) => setFilters(prev => ({ ...prev, fileDateFrom: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="mm/dd/yyyy"
                 />
               </div>
             </div>
 
-            {/* Dropdown Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-responsive-sm font-medium text-gray-700 mb-1">
-                  File Type
-                </label>
-                <select
-                  value={filters.fileType}
-                  onChange={(e) => handleFilterChange('fileType', e.target.value)}
-                  className="input"
-                >
-                  <option value="">All File Types</option>
-                  <option value="Holding">Holding</option>
-                  <option value="Offsite">Offsite</option>
-                  <option value="Client Query">Client Query</option>
-                  <option value="Value Price">Value Price</option>
-                  <option value="Report">Report</option>
-                  <option value="Analysis">Analysis</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-responsive-sm font-medium text-gray-700 mb-1">
-                  Asset Type
-                </label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">File Date To</label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
-                  type="text"
-                  value={filters.assetType}
-                  onChange={(e) => handleFilterChange('assetType', e.target.value)}
-                  className="input"
-                  placeholder="Filter by asset type"
+                  type="date"
+                  value={filters.fileDateTo}
+                  onChange={(e) => setFilters(prev => ({ ...prev, fileDateTo: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="mm/dd/yyyy"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-responsive-sm font-medium text-gray-700 mb-1">
-                  Client Code
-                </label>
-                <select
-                  value={filters.clientCode}
-                  onChange={(e) => handleFilterChange('clientCode', e.target.value)}
-                  className="input"
-                >
-                  <option value="">All Client Codes</option>
-                  {clientCodes.map(code => (
-                    <option key={code} value={code}>{code}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">File Type</label>
+              <select
+                value={filters.fileType}
+                onChange={(e) => setFilters(prev => ({ ...prev, fileType: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option>All File Types</option>
+                <option>.xlsx</option>
+                <option>.xls</option>
+                <option>.xlsm</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Asset Type</label>
+              <input
+                type="text"
+                placeholder="Filter by asset type"
+                value={filters.assetType}
+                onChange={(e) => setFilters(prev => ({ ...prev, assetType: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Client Code</label>
+              <select
+                value={filters.clientCode}
+                onChange={(e) => setFilters(prev => ({ ...prev, clientCode: e.target.value }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option>All Client Codes</option>
+                <option>CLIENT001</option>
+                <option>CLIENT002</option>
+                <option>CLIENT003</option>
+              </select>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Results */}
-      <div className="card">
-        <div className="card-header">
-          <div className="flex items-center justify-between">
-            <h2 className="text-responsive-md font-semibold text-gray-900">
-              Files ({filesData?.total || 0})
-            </h2>
-            {isLoading && (
-              <div className="text-responsive-sm text-gray-500">Loading...</div>
-            )}
+        {/* Files List */}
+        <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Files ({files.length})</h2>
+            {isLoading && <span className="text-gray-500">Loading...</span>}
           </div>
-        </div>
-        <div className="card-content">
-          {filesData?.files && filesData.files.length > 0 ? (
-            <div className="table-responsive">
-              <table className="table">
-                <thead className="table-header">
-                  <tr>
-                    <th>File</th>
-                    <th className="hidden sm:table-cell">Type</th>
-                    <th className="hidden lg:table-cell">Asset</th>
-                    <th className="hidden md:table-cell">Client</th>
-                    <th className="hidden lg:table-cell">File Date</th>
-                    <th className="hidden md:table-cell">Uploaded</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="table-body">
-                  {filesData.files.map((file: any) => (
-                    <tr key={file.id} className="hover:bg-gray-50">
-                      <td>
-                        <div className="flex items-center">
-                          <FileText className="h-4 w-4 text-gray-400 mr-2 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-responsive-sm font-medium text-gray-900 truncate">
-                              {file.filename}
-                            </p>
-                            <p className="text-xs text-gray-500 sm:hidden">
-                              {file.file_type} • {file.client_code}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell">
-                        <span className="text-responsive-sm text-gray-900">{file.file_type}</span>
-                      </td>
-                      <td className="hidden lg:table-cell">
-                        <span className="text-responsive-sm text-gray-900">{file.asset_type}</span>
-                      </td>
-                      <td className="hidden md:table-cell">
-                        <span className="text-responsive-sm text-gray-900">{file.client_code}</span>
-                      </td>
-                      <td className="hidden lg:table-cell">
-                        <span className="text-responsive-sm text-gray-900">
-                          {file.file_date ? format(new Date(file.file_date), 'MMM d, yyyy') : 'N/A'}
-                        </span>
-                      </td>
-                      <td className="hidden md:table-cell">
-                        <span className="text-responsive-sm text-gray-500">
-                          {format(new Date(file.uploaded_at), 'MMM d, yyyy')}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => downloadFile(file.id, file.filename)}
-                          className="btn btn-primary text-xs touch-target"
-                          title="Download file"
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          <span className="hidden sm:inline">Download</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+          {files.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No files found</p>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-responsive-sm text-gray-500">
-                {isLoading ? 'Loading files...' : 'No files found'}
-              </p>
+            <div className="space-y-4">
+              {files.map((file: File) => (
+                <div key={file.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{file.filename}</h3>
+                      <p className="text-sm text-gray-500">
+                        {file.file_type} • {file.client_code} • {file.asset_type}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        File Date: {file.file_date ? format(new Date(file.file_date), 'MMM d, yyyy') : 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleDownload(file.id, file.filename)}
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      title="Download"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(file.id)}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -2,8 +2,8 @@ import axios from 'axios'
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 
   (window.location.hostname === 'certitudetech.netlify.app' 
-    ? 'https://web-base-application.onrender.com/api'  // Your actual Render URL
-    : 'http://localhost:5002/api')
+    ? 'https://your-backend-url.vercel.app/api'  // Replace with your actual backend URL
+    : 'http://192.168.29.211:5002/api')
 
 console.log('🌐 API Base URL:', API_BASE_URL)
 console.log('📍 Current hostname:', window.location.hostname)
@@ -88,6 +88,13 @@ export const filesAPI = {
   },
 
   upload: async (file: globalThis.File, metadata: { fileType: string; assetType: string; clientCode: string; fileDate: string }): Promise<File> => {
+    console.log('📤 Starting file upload...', {
+      filename: file.name,
+      size: file.size,
+      type: file.type,
+      metadata
+    });
+
     const formData = new FormData()
     formData.append('file', file as unknown as Blob)
     formData.append('fileType', metadata.fileType)
@@ -95,12 +102,29 @@ export const filesAPI = {
     formData.append('clientCode', metadata.clientCode)
     formData.append('fileDate', metadata.fileDate)
 
+    // Get current user from localStorage
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const userEmail = user.employeeCode ? `${user.employeeCode}@certitude.com` : 'unknown@certitude.com'
+
+    console.log('👤 User email for upload:', userEmail);
+
+    try {
+      console.log('🌐 Making API request to /files/upload...');
     const response = await api.post('/files/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        'x-user': userEmail
       },
     })
+      
+      console.log('✅ Upload successful:', response.data);
     return response.data
+    } catch (error: any) {
+      console.error('❌ Upload failed:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      throw error;
+    }
   },
 
   download: async (fileId: string): Promise<Blob> => {
@@ -153,6 +177,52 @@ export const authAPI = {
 
   getStats: async (): Promise<{ totalUsers: number; activeUsers: number; pendingUsers: number; terminatedUsers: number; adminUsers: number }> => {
     const response = await api.get('/auth/stats')
+    return response.data
+  },
+
+  getLogs: async (): Promise<{ logs: any[] }> => {
+    const response = await api.get('/auth/logs')
+    return response.data
+  },
+
+  getDownloads: async (): Promise<{ downloads: any[] }> => {
+    const response = await api.get('/auth/downloads')
+    return response.data
+  },
+
+  updateUser: async (employeeCode: string, userData: { name?: string; mobile?: string; password?: string; status?: string }): Promise<{ user: User; message: string }> => {
+    const response = await api.put(`/auth/update/${employeeCode}`, userData)
+    return response.data
+  },
+
+  deleteUser: async (employeeCode: string): Promise<{ user: User; message: string }> => {
+    const response = await api.delete(`/auth/delete/${employeeCode}`)
+    return response.data
+  },
+
+  getUserStats: async (): Promise<{ userStats: any[] }> => {
+    const response = await api.get('/auth/user-stats')
+    return response.data
+  },
+
+  updateProfile: async (profileData: { employeeCode: string; name?: string; mobile?: string; currentPassword?: string; newPassword?: string }): Promise<{ user: User; message: string }> => {
+    const response = await api.put('/auth/profile', profileData)
+    return response.data
+  },
+
+  // Options management
+  getOptions: async (): Promise<{ fileTypes: string[]; assetTypes: string[]; clientCodes: string[] }> => {
+    const response = await api.get('/files/options')
+    return response.data
+  },
+
+  addOption: async (type: string, value: string): Promise<{ message: string; options: any }> => {
+    const response = await api.post(`/auth/options/${type}`, { value })
+    return response.data
+  },
+
+  deleteOption: async (type: string, value: string): Promise<{ message: string; options: any }> => {
+    const response = await api.delete(`/auth/options/${type}/${encodeURIComponent(value)}`)
     return response.data
   },
 } 

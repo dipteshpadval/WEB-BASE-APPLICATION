@@ -71,23 +71,51 @@ class Database {
 
   saveLocalFiles(files) {
     try {
-      fs.writeFileSync(this.filesPath, JSON.stringify(files, null, 2));
+      console.log('💾 Attempting to save files to database...');
+      console.log('📁 Files path:', this.filesPath);
+      console.log('📊 Number of files to save:', files.length);
+      
+      const data = JSON.stringify(files, null, 2);
+      console.log('📄 Data size:', data.length, 'characters');
+      
+      fs.writeFileSync(this.filesPath, data);
+      console.log('✅ Files saved successfully');
       return true;
     } catch (error) {
-      console.error('Error saving local files:', error);
+      console.error('❌ Error saving local files:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        path: this.filesPath
+      });
       return false;
     }
   }
 
   addLocalFile(fileData) {
     try {
+      console.log('📁 Adding file to database:', {
+        id: fileData.id,
+        filename: fileData.filename,
+        file_type: fileData.file_type,
+        asset_type: fileData.asset_type,
+        client_code: fileData.client_code
+      });
+      
       const files = this.getLocalFiles();
       files.push(fileData);
-      this.saveLocalFiles(files);
+      const saveResult = this.saveLocalFiles(files);
+      
+      if (!saveResult) {
+        console.error('❌ Failed to save files to database');
+        return false;
+      }
+      
       this.updateLocalStats(fileData);
+      console.log('✅ File added to database successfully');
       return true;
     } catch (error) {
-      console.error('Error adding local file:', error);
+      console.error('❌ Error adding local file:', error);
       return false;
     }
   }
@@ -139,25 +167,27 @@ class Database {
       let totalStorage = 0;
       
       files.forEach(file => {
-        // File type stats
-        if (file.fileType) {
-          fileTypeStats[file.fileType] = (fileTypeStats[file.fileType] || 0) + 1;
+        // File type stats - check both old and new field names
+        const fileType = file.file_type || file.fileType;
+        if (fileType) {
+          fileTypeStats[fileType] = (fileTypeStats[fileType] || 0) + 1;
         }
         
-        // Client code stats
-        if (file.clientCode) {
-          clientCodeStats[file.clientCode] = (clientCodeStats[file.clientCode] || 0) + 1;
+        // Client code stats - check both old and new field names
+        const clientCode = file.client_code || file.clientCode;
+        if (clientCode) {
+          clientCodeStats[clientCode] = (clientCodeStats[clientCode] || 0) + 1;
         }
         
-        // Asset type stats
-        if (file.assetType) {
-          assetTypeStats[file.assetType] = (assetTypeStats[file.assetType] || 0) + 1;
+        // Asset type stats - check both old and new field names
+        const assetType = file.asset_type || file.assetType;
+        if (assetType) {
+          assetTypeStats[assetType] = (assetTypeStats[assetType] || 0) + 1;
         }
         
         // Storage calculation
-        if (file.size) {
-          totalStorage += file.size;
-        }
+        const fileSize = file.file_size || file.size || 0;
+        totalStorage += fileSize;
       });
       
       const formatStorage = (bytes) => {

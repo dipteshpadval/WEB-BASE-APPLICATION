@@ -110,6 +110,7 @@ router.post('/upload',
         file_date: fileDate,
         file_size: req.file.size,
         uploaded_at: uploadedAt,
+        uploaded_by: req.headers['x-user'] || 'unknown@certitude.com', // Add user tracking
         buffer: req.file.buffer // Store file buffer for download
       };
 
@@ -253,6 +254,14 @@ router.get('/:id/download', async (req, res) => {
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
+
+    // Log file download (we'll need to get user info from request)
+    const user = req.headers['x-user'] || 'unknown@certitude.com';
+    const fileSize = file.size || file.buffer?.length || 0;
+    
+    // Import the logFileDownload function
+    const { logFileDownload } = require('./auth');
+    logFileDownload(file.filename, user, `${Math.round(fileSize / 1024)} KB`);
 
     // Return file buffer as blob
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

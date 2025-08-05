@@ -10,6 +10,7 @@ import FileUpload from './pages/FileUpload'
 import FileList from './pages/FileList'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
+import Profile from './pages/Profile'
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -90,16 +91,23 @@ function DebugPage() {
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
 
+  console.log('🛡️ ProtectedRoute check:', { isAuthenticated, isLoading, user: user?.employeeCode, role: user?.role })
+
+  // Wait for the initial load to complete
   if (isLoading) {
+    console.log('🛡️ ProtectedRoute: Loading...')
     return <LoadingPage />
   }
 
-  if (!isAuthenticated) {
+  // Check if user is authenticated
+  if (!isAuthenticated || !user) {
+    console.log('🛡️ ProtectedRoute: Not authenticated, redirecting to login')
     return <Navigate to="/login" replace />
   }
 
+  console.log('🛡️ ProtectedRoute: Authenticated, rendering children')
   return <>{children}</>
 }
 
@@ -162,6 +170,11 @@ function AppContent() {
           <AdminRoute>
             <Admin />
           </AdminRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
         } />
         
         {/* Fallback */}

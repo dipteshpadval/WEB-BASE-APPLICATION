@@ -30,6 +30,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Upload Files', href: '/upload', icon: Upload },
     { name: 'File List', href: '/files', icon: Files },
+    { name: 'Profile', href: '/profile', icon: User },
     ...(isAdmin ? [{ name: 'Admin Panel', href: '/admin', icon: Shield }] : [])
   ]
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { useQuery } from 'react-query'
+import { Link } from 'react-router-dom'
 import type { FileStats, File } from '../lib/api'
 import { filesAPI } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -12,12 +13,16 @@ import {
   Calendar,
   BarChart3,
   Activity,
-  Zap
+  Zap,
+  Home,
+  Shield,
+  LogOut,
+  User
 } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   
   const { data: stats, isLoading: statsLoading } = useQuery<FileStats>('fileStats', filesAPI.getStats)
   const { data: recentFiles, isLoading: filesLoading } = useQuery<{ files: File[] }>('recentFiles', () => 
@@ -28,230 +33,178 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse space-responsive">
-        <div className="h-8 sm:h-10 bg-white/20 rounded-2xl w-1/3 sm:w-1/4 mb-6 sm:mb-8"></div>
-        <div className="mobile-stats-grid">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="mobile-stats-card">
-              <div className="h-4 sm:h-5 bg-white/20 rounded-lg w-3/4 mb-4 sm:mb-5"></div>
-              <div className="h-8 sm:h-10 bg-white/20 rounded-lg w-1/2"></div>
-            </div>
-          ))}
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+        <div className="animate-pulse space-y-6 p-6">
+          <div className="h-8 bg-white/20 rounded-2xl w-1/3 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6">
+                <div className="h-4 bg-gray-200 rounded-lg w-3/4 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded-lg w-1/2"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-responsive">
-      {/* Header with gradient text */}
-      <div className="mobile-mb-6">
-        <h1 className="text-responsive-lg font-bold text-white mb-2">
-          Dashboard
-        </h1>
-        <p className="mobile-text-sm text-white/80">
-          Welcome back, {user?.name}
-        </p>
-      </div>
-
-      {/* Stats Cards with 3D effects */}
-      <div className="mobile-stats-grid mobile-mb-6">
-        <div className="mobile-stats-card group">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-              </div>
-            </div>
-            <div className="ml-4 sm:ml-5">
-              <p className="mobile-text-sm font-medium text-gray-600">Total Files</p>
-              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                {stats?.total_files || 0}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mobile-stats-card group">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <Upload className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-              </div>
-            </div>
-            <div className="ml-4 sm:ml-5">
-              <p className="mobile-text-sm font-medium text-gray-600">File Types</p>
-              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                {Object.keys(stats?.file_type_stats || stats?.file_types || {}).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mobile-stats-card group">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-              </div>
-            </div>
-            <div className="ml-4 sm:ml-5">
-              <p className="mobile-text-sm font-medium text-gray-600">Client Codes</p>
-              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                {Object.keys(stats?.client_code_stats || stats?.client_codes || {}).length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mobile-stats-card group">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg group-hover:shadow-xl transition-all duration-300">
-                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-              </div>
-            </div>
-            <div className="ml-4 sm:ml-5">
-              <p className="mobile-text-sm font-medium text-gray-600">Asset Types</p>
-              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
-                {Object.keys(stats?.asset_type_stats || stats?.asset_types || {}).length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts and Recent Activity with enhanced styling */}
-      <div className="grid-responsive-2 mobile-mb-6">
-        {/* File Type Distribution with 3D progress bars */}
-        <div className="mobile-card">
-          <div className="card-header">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+      {/* Navigation Bar */}
+      <nav className="bg-white/10 backdrop-blur-sm border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 mr-3">
-                <BarChart3 className="h-5 w-5 text-white" />
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white rounded-lg">
+                  <FileText className="h-6 w-6 text-purple-600" />
+                </div>
+                <span className="text-white font-semibold text-lg">File Manager</span>
               </div>
-              <h3 className="mobile-text-base font-semibold text-gray-900">File Type Distribution</h3>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link to="/dashboard" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <Home className="h-4 w-4" />
+                <span>Dashboard</span>
+              </Link>
+              <Link to="/files" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <FileText className="h-4 w-4" />
+                <span>Files</span>
+              </Link>
+              <Link to="/upload" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <Upload className="h-4 w-4" />
+                <span>Upload</span>
+              </Link>
+              <Link to="/admin" className="flex items-center space-x-2 text-white hover:text-purple-200 transition-colors">
+                <Shield className="h-4 w-4" />
+                <span>Admin</span>
+              </Link>
+              <div className="flex items-center space-x-2 text-white">
+                <User className="h-4 w-4" />
+                <span>{user?.name || 'admin@certitude.com'}</span>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center space-x-2 text-white hover:text-red-200 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </button>
             </div>
           </div>
-          <div className="card-content">
-            {(stats?.file_type_stats && Object.keys(stats.file_type_stats).length > 0) || 
-             (stats?.file_types && Object.keys(stats.file_types).length > 0) ? (
-              <div className="space-y-4 sm:space-y-5">
-                {Object.entries(stats?.file_type_stats || stats?.file_types || {}).map(([type, count]) => (
-                  <div key={type} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="mobile-text-sm font-medium text-gray-700 truncate mr-3 flex-1">{type}</span>
-                      <span className="mobile-text-sm font-bold text-gray-900">{count as number}</span>
-                    </div>
-                    <div className="progress-3d">
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${((count as number) / stats.total_files) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mobile-text-sm">No files uploaded yet</p>
-              </div>
-            )}
-          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">Dashboard</h1>
+          <p className="text-white/80">Welcome back, {user?.name || 'admin@certitude.com'}</p>
         </div>
 
-        {/* Recent Activity with enhanced styling */}
-        <div className="mobile-card">
-          <div className="card-header">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-green-600 mr-3">
-                <Activity className="h-5 w-5 text-white" />
+              <div className="p-3 bg-blue-500 rounded-xl mr-4">
+                <FileText className="h-6 w-6 text-white" />
               </div>
-              <h3 className="mobile-text-base font-semibold text-gray-900">Recent Activity</h3>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Files</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.total_files || 0}</p>
+              </div>
             </div>
           </div>
-          <div className="card-content">
-            {recentFiles?.files && recentFiles.files.length > 0 ? (
-              <div className="space-y-4 sm:space-y-5">
-                {recentFiles.files.map((file: any) => (
-                  <div key={file.id} className="flex items-start justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-indigo-50 transition-all duration-300">
-                    <div className="flex items-start min-w-0 flex-1">
-                      <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 mr-3 flex-shrink-0">
-                        <FileText className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="mobile-text-sm font-semibold text-gray-900 truncate">{file.filename}</p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {file.file_type} • {file.client_code}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          File Date: {file.file_date ? format(new Date(file.file_date), 'MMM d, yyyy') : 'Not specified'}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-500 flex-shrink-0 ml-3">
-                      {format(new Date(file.uploaded_at), 'MMM d, yyyy \'at\' h:mm a')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mobile-text-sm">No recent files</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* Monthly Uploads Chart with enhanced styling */}
-      <div className="mobile-card">
-        <div className="card-header">
-          <div className="flex items-center">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 mr-3">
-              <Calendar className="h-5 w-5 text-white" />
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-500 rounded-xl mr-4">
+                <Upload className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">File Types</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {Object.keys(stats?.file_type_stats || stats?.file_types || {}).length}
+                </p>
+              </div>
             </div>
-            <h3 className="mobile-text-base font-semibold text-gray-900">Monthly Uploads</h3>
           </div>
-        </div>
-        <div className="card-content">
-          {stats?.monthly_stats && Object.keys(stats.monthly_stats).length > 0 ? (
-            <div className="space-y-4 sm:space-y-5">
-              {Object.entries(stats.monthly_stats)
-                .sort(([a], [b]) => b.localeCompare(a))
-                .slice(0, 6)
-                .map(([month, count]) => (
-                  <div key={month} className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-purple-50 hover:to-indigo-50 transition-all duration-300">
-                    <div className="flex items-center">
-                      <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 mr-3">
-                        <Calendar className="h-4 w-4 text-white" />
-                      </div>
-                      <span className="mobile-text-sm font-medium text-gray-700">
-                        {format(new Date(month + '-01'), 'MMMM yyyy')}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="mobile-text-sm font-bold text-gray-900 mr-2">{count as number}</span>
-                      <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min((count as number) * 10, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-500 rounded-xl mr-4">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Client Codes</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {Object.keys(stats?.client_code_stats || stats?.client_codes || {}).length}
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mobile-text-sm">No upload data available</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center">
+              <div className="p-3 bg-orange-500 rounded-xl mr-4">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Asset Types</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {Object.keys(stats?.asset_type_stats || stats?.asset_types || {}).length}
+                </p>
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-500 rounded-xl mr-4">
+                <BarChart3 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">File Type Distribution</p>
+                <div className="mt-2">
+                  {Object.keys(stats?.file_type_stats || stats?.file_types || {}).length > 0 ? (
+                    <p className="text-lg font-bold text-gray-900">
+                      {Object.keys(stats?.file_type_stats || stats?.file_types || {}).length} types
+                    </p>
+                  ) : (
+                    <div className="text-center">
+                      <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No files uploaded yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-lg">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-500 rounded-xl mr-4">
+                <Activity className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Recent Activity</p>
+                <div className="mt-2">
+                  {recentFiles?.files && recentFiles.files.length > 0 ? (
+                    <p className="text-lg font-bold text-gray-900">
+                      {recentFiles.files.length} recent files
+                    </p>
+                  ) : (
+                    <div className="text-center">
+                      <Activity className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No recent files</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

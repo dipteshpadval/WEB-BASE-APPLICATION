@@ -5,12 +5,13 @@ import { Hash, Lock, Eye, EyeOff, ArrowLeft, UserCheck, UserPlus, Phone, User } 
 import toast from 'react-hot-toast'
 
 export default function Login() {
-  const { login, register, isLoading } = useAuth()
+  const { login, register, isLoading, user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [loginSuccess, setLoginSuccess] = useState(false)
 
   // Login form data
   const [loginData, setLoginData] = useState({
@@ -33,6 +34,35 @@ export default function Login() {
     console.log('🎯 Active tab:', activeTab)
     console.log('👤 Auth context loaded:', !!login && !!register)
   }, [activeTab, login, register])
+
+  // Handle redirection after successful login
+  useEffect(() => {
+    console.log('🔄 Redirection useEffect triggered:', { 
+      loginSuccess, 
+      isAuthenticated, 
+      user: user?.role,
+      userStatus: user?.status,
+      userEmployeeCode: user?.employeeCode
+    })
+    
+    if (loginSuccess && isAuthenticated && user) {
+      console.log('🔄 Login successful, redirecting...')
+      console.log('👤 User role:', user.role)
+      console.log('👤 User status:', user.status)
+      console.log('👤 Full user object:', user)
+      
+      if (user.role === 'admin') {
+        console.log('🔄 Redirecting to admin dashboard...')
+        navigate('/admin', { replace: true })
+      } else {
+        console.log('🔄 Redirecting to user dashboard...')
+        navigate('/dashboard', { replace: true })
+      }
+      setLoginSuccess(false) // Reset the flag
+    } else if (loginSuccess && !isAuthenticated) {
+      console.log('❌ Login success but not authenticated - this might be the issue!')
+    }
+  }, [loginSuccess, isAuthenticated, user, navigate])
 
   const validateLoginForm = () => {
     const newErrors: Record<string, string> = {}
@@ -89,30 +119,10 @@ export default function Login() {
       console.log('📤 Login data:', { employeeCode: loginData.employeeCode, password: '***' })
       
       await login(loginData.employeeCode, loginData.password)
-      console.log('✅ Login successful, checking user role...')
-      
-      // Get user from localStorage
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
-      console.log('👤 Current user from localStorage:', currentUser)
+      console.log('✅ Login successful!')
       
       toast.success('Login successful!')
-      
-      // Use a small delay to ensure state is updated, then redirect
-      console.log('⏳ Waiting 100ms before redirect...')
-      setTimeout(() => {
-        console.log('🔄 Starting redirect process...')
-        if (currentUser.role === 'admin') {
-          console.log('🔄 Redirecting to admin dashboard...')
-          console.log('📍 Current URL:', window.location.href)
-          window.location.href = '/admin'
-          console.log('✅ Admin redirect initiated')
-        } else {
-          console.log('🔄 Redirecting to user dashboard...')
-          console.log('📍 Current URL:', window.location.href)
-          window.location.href = '/dashboard'
-          console.log('✅ User redirect initiated')
-        }
-      }, 100)
+      setLoginSuccess(true) // Trigger the useEffect for redirection
       
     } catch (error: any) {
       console.error('❌ Login error:', error)
