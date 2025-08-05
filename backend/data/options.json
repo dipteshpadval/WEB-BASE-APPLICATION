@@ -1,0 +1,24 @@
+{
+  "fileTypes": [
+    "WORKING",
+    "REPORT",
+    "SCHEME MASTER",
+    "DATA"
+  ],
+  "assetTypes": [
+    "Equity",
+    "HOLDING",
+    "OFFSITE DATA",
+    "CLIENT QUERY",
+    "DATA"
+  ],
+  "clientCodes": [
+    "INVESCO",
+    "CANERA",
+    "BOI",
+    "PGIM",
+    "DSP",
+    "ADITYA BIRLA",
+    "OLD BRIDGE"
+  ]
+}
