@@ -144,11 +144,7 @@ function AppContent() {
         <Route path="/home" element={<HomePage />} />
         
         {/* Protected Routes */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
@@ -208,4 +204,4 @@ function App() {
   )
 }
 
-export default App 
+export default App

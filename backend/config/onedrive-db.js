@@ -4,7 +4,7 @@ const axios = require('axios');
 
 // OneDrive API configuration
 const ONEDRIVE_API_BASE = 'https://graph.microsoft.com/v1.0/me/drive';
-const ONEDRIVE_FOLDER = 'FileManagerDB'; // Folder name in OneDrive
+const ONEDRIVE_FOLDER = 'AUTOMATION/DATABASE/web base/DATA'; // User-specified OneDrive cloud folder
 
 class OneDriveDB {
   constructor() {
