@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-const db = require('./config/database');
+const { connectDB } = require('./config/mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -48,14 +48,8 @@ app.use(cors({
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Initialize database
-try {
-  if (db.initialize) {
-    db.initialize();
-  }
-} catch (error) {
-  console.log('⚠️  Database initialization failed, continuing with basic setup:', error.message);
-}
+// Initialize MongoDB connection
+let dbConnection = null;
 
 // Routes
 app.use('/api/files', require('./routes/files'));
@@ -69,7 +63,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     cors: 'enabled',
-    database: 'Local Database'
+    database: dbConnection ? 'MongoDB Atlas' : 'Connecting...'
   });
 });
 
@@ -97,10 +91,22 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('✅ Using local database');
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);
-  console.log('✅ Database initialized successfully');
-}); 
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    dbConnection = await connectDB();
+    
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log('✅ MongoDB Atlas Connected');
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);
+      console.log('✅ Database initialized successfully');
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer(); 

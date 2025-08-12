@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
 const { body, query, validationResult } = require('express-validator');
 // const { supabase } = require('../config/database');
@@ -34,12 +34,12 @@ const upload = multer({
 });
 
 // Validate Excel file content
-const validateExcelFile = (file) => {
+const validateExcelFile = async (file) => {
   try {
-    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-    const sheetNames = workbook.SheetNames;
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer);
     
-    if (sheetNames.length === 0) {
+    if (workbook.worksheets.length === 0) {
       throw new Error('Excel file must contain at least one sheet');
     }
     
@@ -92,7 +92,7 @@ router.post('/upload',
 
       // Validate Excel file
       try {
-        validateExcelFile(req.file);
+        await validateExcelFile(req.file);
       } catch (error) {
         return res.status(400).json({ error: error.message });
       }
