@@ -120,10 +120,12 @@ class Database {
       console.error('❌ MongoDB connection failed');
       console.error('❌ Please whitelist your server IP in MongoDB Atlas');
       console.error('❌ Or set MONGODB_URI environment variable');
-      throw new Error('Failed to connect to MongoDB - database connection required');
+      console.error('❌ Server will start but file operations will fail');
+      // Don't throw error, let server start
+    } else {
+      console.log('✅ MongoDB connected successfully');
     }
     
-    console.log('✅ MongoDB connected successfully');
     return true;
   }
 
