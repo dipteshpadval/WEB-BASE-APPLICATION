@@ -108,16 +108,11 @@ router.post('/upload',
       const fileId = uuidv4();
       const uploadedAt = new Date().toISOString();
 
-      // Save file to disk
-      const filePath = path.join(uploadsDir, `${fileId}_${req.file.originalname}`);
-      fs.writeFileSync(filePath, req.file.buffer);
-      console.log('💾 File saved to disk:', filePath);
-
-      // Create file entry
+      // Create file entry with file buffer stored in MongoDB
       const fileData = {
         id: fileId,
         filename: req.file.originalname,
-        file_path: filePath, // Store file path instead of buffer
+        file_buffer: req.file.buffer, // Store file buffer in MongoDB
         file_type: fileType,
         asset_type: assetType,
         client_code: clientCode,
@@ -286,14 +281,13 @@ router.get('/:id/download', async (req, res) => {
     const { logFileDownload } = require('./auth');
     logFileDownload(file.filename, user, `${Math.round(fileSize / 1024)} KB`);
 
-    // Read file from disk and send
-    if (file.file_path && fs.existsSync(file.file_path)) {
-      const fileBuffer = fs.readFileSync(file.file_path);
+    // Send file buffer from MongoDB
+    if (file.file_buffer) {
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-      res.send(fileBuffer);
+      res.send(file.file_buffer);
     } else {
-      res.status(404).json({ error: 'File not found on disk' });
+      res.status(404).json({ error: 'File buffer not found in database' });
     }
   } catch (error) {
     console.error('Download error:', error);
@@ -321,11 +315,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(500).json({ error: 'Failed to remove file from database' });
     }
 
-    // Remove file from disk
-    if (file.file_path && fs.existsSync(file.file_path)) {
-      fs.unlinkSync(file.file_path);
-      console.log('🗑️ File removed from disk:', file.file_path);
-    }
+    // File is stored in MongoDB, no need to remove from disk
+    console.log('🗑️ File removed from database');
 
     // Update stats
     await db.updateStats(file);

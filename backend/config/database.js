@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+const File = require('../models/File');
 
 // Production database path
 const PRODUCTION_DB_PATH = path.join(__dirname, '../data');
@@ -136,21 +137,49 @@ class Database {
     return 'Local Database';
   }
 
-  getFiles() {
-    return this.getLocalFiles();
+  async getFiles() {
+    try {
+      const files = await File.find({}).sort({ uploaded_at: -1 });
+      console.log(`✅ Retrieved ${files.length} files from MongoDB`);
+      return files;
+    } catch (error) {
+      console.error('❌ Error retrieving files from MongoDB:', error);
+      return [];
+    }
   }
 
   saveFiles(files) {
     return this.saveLocalFiles(files);
   }
 
-  addFile(fileData) {
+  async addFile(fileData) {
     console.log('📁 Database.addFile called with:', fileData);
-    return this.addLocalFile(fileData);
+    try {
+      // Create new file document in MongoDB
+      const newFile = new File(fileData);
+      await newFile.save();
+      console.log('✅ File saved to MongoDB successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Error saving file to MongoDB:', error);
+      return false;
+    }
   }
 
-  removeFile(fileId) {
-    return this.removeLocalFile(fileId);
+  async removeFile(fileId) {
+    try {
+      const result = await File.deleteOne({ id: fileId });
+      if (result.deletedCount > 0) {
+        console.log('✅ File removed from MongoDB successfully');
+        return true;
+      } else {
+        console.log('⚠️ File not found in MongoDB');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error removing file from MongoDB:', error);
+      return false;
+    }
   }
 
   getStats() {
@@ -161,8 +190,14 @@ class Database {
     return this.saveLocalStats(stats);
   }
 
-  updateStats(newFileData) {
-    return this.updateLocalStats(newFileData);
+  async updateStats(newFileData) {
+    try {
+      const files = await this.getFiles();
+      return this.updateLocalStats(newFileData);
+    } catch (error) {
+      console.error('❌ Error updating stats:', error);
+      return this.getLocalStats();
+    }
   }
 
   // Local database methods
