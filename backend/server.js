@@ -73,7 +73,8 @@ app.get('/', (req, res) => {
   res.json({
     message: 'File Manager API is running',
     version: '1.0.0',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    serverIP: req.ip || req.connection.remoteAddress
   });
 });
 
@@ -94,19 +95,15 @@ app.use((err, req, res, next) => {
 // Start server
 const startServer = async () => {
   try {
-    // Initialize local database
+    // Initialize database (requires MongoDB connection)
     await db.initialize();
     
-    // Connect to MongoDB as backup
+    // Also connect to MongoDB through the separate connection
     dbConnection = await connectDB();
     
     app.listen(PORT, '0.0.0.0', () => {
-      console.log('✅ Local database initialized');
-      if (dbConnection) {
-        console.log('✅ MongoDB Atlas Connected');
-      } else {
-        console.log('⚠️ MongoDB Atlas connection failed, using local storage');
-      }
+      console.log('✅ MongoDB database initialized');
+      console.log('✅ MongoDB Atlas Connected');
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);
@@ -114,6 +111,7 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
+    console.error('❌ MongoDB connection is required - please check your connection settings');
     process.exit(1);
   }
 };

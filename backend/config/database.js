@@ -8,14 +8,13 @@ const PRODUCTION_DB_PATH = path.join(__dirname, '../data');
 // MongoDB connection
 const connectMongoDB = async () => {
   try {
-    const conn = await mongoose.connect('mongodb+srv://dipteshpadval:diptesh6272@cluster0.avhq4bo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://dipteshpadval:diptesh6272@cluster0.avhq4bo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+    const conn = await mongoose.connect(mongoURI);
     console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
     return conn;
   } catch (error) {
     console.error(`❌ MongoDB connection error: ${error.message}`);
+    console.error('❌ Please check your MongoDB connection string and IP whitelist');
     return null;
   }
 };
@@ -111,16 +110,16 @@ class Database {
   }
 
   async initialize() {
-    console.log('✅ Using local database with MongoDB backup');
+    console.log('✅ Connecting to MongoDB as primary database...');
     this.ensureDataDirectory();
     
-    // Try to connect to MongoDB as backup
-    try {
-      this.mongoConnection = await connectMongoDB();
-    } catch (error) {
-      console.log('⚠️ MongoDB connection failed, using local storage only');
+    // Connect to MongoDB as primary database
+    this.mongoConnection = await connectMongoDB();
+    if (!this.mongoConnection) {
+      throw new Error('Failed to connect to MongoDB - database connection required');
     }
     
+    console.log('✅ MongoDB connected successfully');
     return true;
   }
 
