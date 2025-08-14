@@ -140,6 +140,18 @@ router.post('/upload',
         uploaded_by: req.headers['x-user'] || 'unknown@certitude.com' // Add user tracking
       };
 
+      console.log('📋 File data created:', {
+        id: fileData.id,
+        filename: fileData.filename,
+        file_type: fileData.file_type,
+        asset_type: fileData.asset_type,
+        client_code: fileData.client_code,
+        file_date: fileData.file_date,
+        file_size: fileData.file_size,
+        uploaded_by: fileData.uploaded_by,
+        buffer_size: fileData.file_buffer ? fileData.file_buffer.length : 0
+      });
+
       // Save to database
       console.log('💾 Attempting to save file to database...');
       console.log('📁 File size:', req.file.size, 'bytes');

@@ -71,8 +71,28 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     cors: 'enabled',
-    database: dbConnection ? 'MongoDB Atlas' : 'Connecting...'
+    database: dbConnection ? 'MongoDB Atlas' : 'Connecting...',
+    mongoConnection: dbConnection ? 'Connected' : 'Not Connected'
   });
+});
+
+// Test MongoDB connection endpoint
+app.get('/api/test-mongo', async (req, res) => {
+  try {
+    const File = require('./models/File');
+    const count = await File.countDocuments();
+    res.json({
+      status: 'MongoDB Connected',
+      fileCount: count,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'MongoDB Error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Root endpoint for testing

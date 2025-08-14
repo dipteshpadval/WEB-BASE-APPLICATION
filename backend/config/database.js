@@ -153,15 +153,49 @@ class Database {
   }
 
   async addFile(fileData) {
-    console.log('📁 Database.addFile called with:', fileData);
+    console.log('📁 Database.addFile called with:', {
+      id: fileData.id,
+      filename: fileData.filename,
+      file_type: fileData.file_type,
+      asset_type: fileData.asset_type,
+      client_code: fileData.client_code,
+      file_size: fileData.file_size,
+      uploaded_by: fileData.uploaded_by,
+      buffer_size: fileData.file_buffer ? fileData.file_buffer.length : 0
+    });
+    
     try {
+      // Validate required fields
+      if (!fileData.id || !fileData.filename || !fileData.file_type || !fileData.asset_type || !fileData.client_code || !fileData.file_date || !fileData.file_size || !fileData.uploaded_at || !fileData.uploaded_by || !fileData.file_buffer) {
+        console.error('❌ Missing required fields:', {
+          id: !!fileData.id,
+          filename: !!fileData.filename,
+          file_type: !!fileData.file_type,
+          asset_type: !!fileData.asset_type,
+          client_code: !!fileData.client_code,
+          file_date: !!fileData.file_date,
+          file_size: !!fileData.file_size,
+          uploaded_at: !!fileData.uploaded_at,
+          uploaded_by: !!fileData.uploaded_by,
+          file_buffer: !!fileData.file_buffer
+        });
+        return false;
+      }
+
       // Create new file document in MongoDB
       const newFile = new File(fileData);
-      await newFile.save();
-      console.log('✅ File saved to MongoDB successfully');
+      console.log('📄 File document created, attempting to save...');
+      
+      const savedFile = await newFile.save();
+      console.log('✅ File saved to MongoDB successfully with ID:', savedFile._id);
       return true;
     } catch (error) {
-      console.error('❌ Error saving file to MongoDB:', error);
+      console.error('❌ Error saving file to MongoDB:', error.message);
+      console.error('❌ Error details:', {
+        name: error.name,
+        code: error.code,
+        stack: error.stack
+      });
       return false;
     }
   }
