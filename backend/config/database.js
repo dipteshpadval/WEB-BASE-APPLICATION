@@ -1,19 +1,126 @@
 const fs = require('fs');
 const path = require('path');
+const mongoose = require('mongoose');
 
 // Production database path
 const PRODUCTION_DB_PATH = path.join(__dirname, '../data');
+
+// MongoDB connection
+const connectMongoDB = async () => {
+  try {
+    const conn = await mongoose.connect('mongodb+srv://dipteshpadval:diptesh6272@cluster0.avhq4bo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
+    return conn;
+  } catch (error) {
+    console.error(`❌ MongoDB connection error: ${error.message}`);
+    return null;
+  }
+};
+
+// Mock Supabase for compatibility (since we're using local storage)
+const supabase = {
+  auth: {
+    getUser: async (token) => {
+      // Mock implementation - you can replace this with actual Supabase auth
+      return { data: { user: null }, error: null };
+    }
+  },
+  from: (table) => ({
+    select: (fields) => ({
+      order: (field, direction) => ({
+        then: (callback) => {
+          // Mock implementation for users table
+          if (table === 'users') {
+            try {
+              const usersFile = path.join(__dirname, '../data/users.json');
+              if (fs.existsSync(usersFile)) {
+                const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+                const formattedUsers = users.map(user => ({
+                  id: user.employeeCode,
+                  email: `${user.employeeCode}@certitude.com`,
+                  role: user.role,
+                  created_at: user.createdAt
+                }));
+                callback({ data: formattedUsers, error: null });
+              } else {
+                callback({ data: [], error: null });
+              }
+            } catch (error) {
+              callback({ data: null, error: error.message });
+            }
+          }
+        }
+      })
+    }),
+    update: (data) => ({
+      eq: (field, value) => ({
+        select: (fields) => ({
+          single: () => {
+            // Mock implementation for updating users
+            try {
+              const usersFile = path.join(__dirname, '../data/users.json');
+              if (fs.existsSync(usersFile)) {
+                const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+                const userIndex = users.findIndex(u => u.employeeCode === value);
+                if (userIndex !== -1) {
+                  users[userIndex] = { ...users[userIndex], ...data };
+                  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+                  return { data: users[userIndex], error: null };
+                }
+              }
+              return { data: null, error: 'User not found' };
+            } catch (error) {
+              return { data: null, error: error.message };
+            }
+          }
+        })
+      })
+    }),
+    delete: () => ({
+      eq: (field, value) => ({
+        then: (callback) => {
+          // Mock implementation for deleting users
+          try {
+            const usersFile = path.join(__dirname, '../data/users.json');
+            if (fs.existsSync(usersFile)) {
+              const users = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+              const filteredUsers = users.filter(u => u.employeeCode !== value);
+              fs.writeFileSync(usersFile, JSON.stringify(filteredUsers, null, 2));
+              callback({ error: null });
+            } else {
+              callback({ error: 'Users file not found' });
+            }
+          } catch (error) {
+            callback({ error: error.message });
+          }
+        }
+      })
+    })
+  })
+};
 
 class Database {
   constructor() {
     this.useOneDrive = false;
     this.filesPath = path.join(PRODUCTION_DB_PATH, 'files.json');
     this.statsPath = path.join(PRODUCTION_DB_PATH, 'stats.json');
+    this.mongoConnection = null;
   }
 
-  initialize() {
-    console.log('✅ Using local database');
+  async initialize() {
+    console.log('✅ Using local database with MongoDB backup');
     this.ensureDataDirectory();
+    
+    // Try to connect to MongoDB as backup
+    try {
+      this.mongoConnection = await connectMongoDB();
+    } catch (error) {
+      console.log('⚠️ MongoDB connection failed, using local storage only');
+    }
+    
     return true;
   }
 
@@ -225,4 +332,17 @@ class Database {
   }
 }
 
-module.exports = new Database(); 
+const databaseInstance = new Database();
+module.exports = {
+  // Database methods
+  initialize: databaseInstance.initialize.bind(databaseInstance),
+  getFiles: databaseInstance.getFiles.bind(databaseInstance),
+  saveFiles: databaseInstance.saveFiles.bind(databaseInstance),
+  addFile: databaseInstance.addFile.bind(databaseInstance),
+  removeFile: databaseInstance.removeFile.bind(databaseInstance),
+  getStats: databaseInstance.getStats.bind(databaseInstance),
+  saveStats: databaseInstance.saveStats.bind(databaseInstance),
+  updateStats: databaseInstance.updateStats.bind(databaseInstance),
+  // Supabase mock
+  supabase
+}; 

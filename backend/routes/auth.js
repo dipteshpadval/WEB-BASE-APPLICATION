@@ -165,10 +165,14 @@ router.post('/login', [
       return res.status(401).json({ error: 'Account is not approved. Please contact administrator.' });
     }
 
+    // Generate simple token (employeeCode:timestamp)
+    const token = `${user.employeeCode}:${Date.now()}`;
+    
     // Log successful login
     logActivity('User login detected', `${user.employeeCode}@certitude.com`, `Action: USER_LOGIN`, 'info');
 
     res.json({
+      token: token,
       user: {
         employeeCode: user.employeeCode,
         name: user.name,

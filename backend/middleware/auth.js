@@ -1,6 +1,22 @@
-const { supabase } = require('../config/database');
+const fs = require('fs');
+const path = require('path');
 
-// Verify JWT token
+// Helper function to read users from local file
+function readUsers() {
+  try {
+    const usersFile = path.join(__dirname, '../data/users.json');
+    if (fs.existsSync(usersFile)) {
+      const data = fs.readFileSync(usersFile, 'utf8');
+      return JSON.parse(data);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error reading users file:', error);
+    return [];
+  }
+}
+
+// Simple token verification (you can enhance this with JWT later)
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -10,28 +26,35 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    // Verify token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // For now, we'll use a simple token format: "Bearer employeeCode:timestamp"
+    // In production, you should use proper JWT tokens
+    const tokenData = token.split(':');
+    if (tokenData.length !== 2) {
+      return res.status(403).json({ error: 'Invalid token format' });
+    }
+
+    const employeeCode = tokenData[0];
+    const timestamp = parseInt(tokenData[1]);
+    const currentTime = Date.now();
     
-    if (error || !user) {
+    // Token expires after 24 hours
+    if (currentTime - timestamp > 24 * 60 * 60 * 1000) {
+      return res.status(403).json({ error: 'Token expired' });
+    }
+
+    // Get user from local file
+    const users = readUsers();
+    const user = users.find(u => u.employeeCode === employeeCode && u.status === 'active');
+
+    if (!user) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
 
-    // Get user profile with role
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError) {
-      return res.status(500).json({ error: 'Error fetching user profile' });
-    }
-
     req.user = {
-      id: user.id,
-      email: user.email,
-      role: profile.role || 'viewer'
+      id: user.employeeCode,
+      email: `${user.employeeCode}@certitude.com`,
+      role: user.role || 'user',
+      name: user.name
     };
 
     next();
@@ -59,8 +82,7 @@ const requireRole = (roles) => {
 // Role constants
 const ROLES = {
   ADMIN: 'admin',
-  UPLOADER: 'uploader',
-  VIEWER: 'viewer'
+  USER: 'user'
 };
 
 module.exports = {

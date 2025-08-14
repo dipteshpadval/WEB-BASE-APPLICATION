@@ -111,8 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('👤 Setting user state:', userData)
       setUser(userData)
       
-      console.log('💾 Saving user to localStorage...')
+      console.log('💾 Saving user and token to localStorage...')
       localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('token', response.token)
       
       console.log('✅ Login process completed successfully')
       toast.success(response.message)
@@ -130,6 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null)
     localStorage.removeItem('user')
+    localStorage.removeItem('token')
     toast.success('Logged out successfully')
   }
 

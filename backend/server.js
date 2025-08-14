@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const { connectDB } = require('./config/mongodb');
+const db = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -93,11 +94,19 @@ app.use((err, req, res, next) => {
 // Start server
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+    // Initialize local database
+    await db.initialize();
+    
+    // Connect to MongoDB as backup
     dbConnection = await connectDB();
     
     app.listen(PORT, '0.0.0.0', () => {
-      console.log('✅ MongoDB Atlas Connected');
+      console.log('✅ Local database initialized');
+      if (dbConnection) {
+        console.log('✅ MongoDB Atlas Connected');
+      } else {
+        console.log('⚠️ MongoDB Atlas connection failed, using local storage');
+      }
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);
