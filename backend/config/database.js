@@ -116,6 +116,9 @@ class Database {
     // Connect to MongoDB as primary database
     this.mongoConnection = await connectMongoDB();
     if (!this.mongoConnection) {
+      console.error('❌ MongoDB connection failed');
+      console.error('❌ Please whitelist your server IP in MongoDB Atlas');
+      console.error('❌ Or set MONGODB_URI environment variable');
       throw new Error('Failed to connect to MongoDB - database connection required');
     }
     
