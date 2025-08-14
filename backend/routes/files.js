@@ -39,7 +39,24 @@ const upload = multer({
       cb(new Error('Only Excel files are allowed'), false);
     }
   }
-});
+}).single('file');
+
+// Wrapper to handle multer with timeout
+const uploadWithTimeout = (req, res, next) => {
+  const timeout = setTimeout(() => {
+    console.error('❌ File upload timeout');
+    res.status(408).json({ error: 'Upload timeout - file too large or slow connection' });
+  }, 120000); // 2 minutes
+
+  upload(req, res, (err) => {
+    clearTimeout(timeout);
+    if (err) {
+      console.error('❌ Multer error:', err);
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+};
 
 // Validate Excel file content
 const validateExcelFile = async (file) => {
@@ -61,13 +78,14 @@ const validateExcelFile = async (file) => {
 router.post('/upload', 
   // authenticateToken,
   // requireRole([ROLES.ADMIN, ROLES.UPLOADER]),
-  upload.single('file'),
+  uploadWithTimeout,
   [
     body('fileType').isIn(['WORKING', 'REPORT', 'SCHEME MASTER', 'DATA']),
     body('assetType').notEmpty().trim(),
     body('clientCode').notEmpty().trim()
   ],
   async (req, res) => {
+    console.log('🚀 File upload started at:', new Date().toISOString());
     try {
       console.log('📤 Upload request received from:', req.ip);
       console.log('📋 Request body:', req.body);
@@ -124,6 +142,8 @@ router.post('/upload',
 
       // Save to database
       console.log('💾 Attempting to save file to database...');
+      console.log('📁 File size:', req.file.size, 'bytes');
+      
       const addFileResult = await db.addFile(fileData);
       console.log('📁 addFile result:', addFileResult);
       
@@ -144,6 +164,8 @@ router.post('/upload',
         clientCode,
         fileDate
       });
+
+      console.log('🏁 File upload completed at:', new Date().toISOString());
 
       res.status(201).json({
         message: 'File uploaded successfully',
