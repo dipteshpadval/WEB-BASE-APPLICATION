@@ -20,13 +20,24 @@ if (!fs.existsSync(USERS_FILE)) {
     employeeCode: 'admin',
     password: '12345678',
     name: 'Administrator',
-    mobile: '1234567890',
+    mobile: '9321599541',
     role: 'admin',
     status: 'active',
     createdAt: new Date().toISOString()
   };
-  fs.writeFileSync(USERS_FILE, JSON.stringify([adminUser], null, 2));
-  console.log('✅ Admin user created');
+  
+  const dipteshUser = {
+    employeeCode: '6272',
+    password: '11111111',
+    name: 'diptesh',
+    mobile: '9321599541',
+    role: 'user',
+    status: 'active',
+    createdAt: new Date().toISOString()
+  };
+  
+  fs.writeFileSync(USERS_FILE, JSON.stringify([adminUser, dipteshUser], null, 2));
+  console.log('✅ Admin and diptesh users created');
   
   // Create initial system logs
   const logsFile = path.join(__dirname, '../data/system-logs.json');
