@@ -3,11 +3,19 @@ const multer = require('multer');
 const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
 const { body, query, validationResult } = require('express-validator');
+const fs = require('fs');
+const path = require('path');
 // const { supabase } = require('../config/database');
 // const { uploadFile, generateSignedUrl, deleteFile } = require('../config/aws');
 // const { authenticateToken, requireRole, ROLES } = require('../middleware/auth');
 
 const db = require('../config/database');
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../data/uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 const router = express.Router();
 
@@ -100,23 +108,38 @@ router.post('/upload',
       const fileId = uuidv4();
       const uploadedAt = new Date().toISOString();
 
+      // Save file to disk
+      const filePath = path.join(uploadsDir, `${fileId}_${req.file.originalname}`);
+      fs.writeFileSync(filePath, req.file.buffer);
+      console.log('💾 File saved to disk:', filePath);
+
       // Create file entry
       const fileData = {
         id: fileId,
         filename: req.file.originalname,
+        file_path: filePath, // Store file path instead of buffer
         file_type: fileType,
         asset_type: assetType,
         client_code: clientCode,
         file_date: fileDate,
         file_size: req.file.size,
         uploaded_at: uploadedAt,
-        uploaded_by: req.headers['x-user'] || 'unknown@certitude.com', // Add user tracking
-        buffer: req.file.buffer // Store file buffer for download
+        uploaded_by: req.headers['x-user'] || 'unknown@certitude.com' // Add user tracking
       };
 
       // Save to database
-      await db.addFile(fileData);
-      await db.updateStats();
+      console.log('💾 Attempting to save file to database...');
+      const addFileResult = await db.addFile(fileData);
+      console.log('📁 addFile result:', addFileResult);
+      
+      if (!addFileResult) {
+        console.error('❌ Failed to add file to database');
+        return res.status(500).json({ error: 'Failed to save file to database' });
+      }
+      
+      console.log('📊 Updating stats...');
+      await db.updateStats(fileData);
+      console.log('✅ Stats updated successfully');
 
       console.log('✅ File uploaded successfully:', {
         id: fileId,
@@ -257,16 +280,21 @@ router.get('/:id/download', async (req, res) => {
 
     // Log file download (we'll need to get user info from request)
     const user = req.headers['x-user'] || 'unknown@certitude.com';
-    const fileSize = file.size || file.buffer?.length || 0;
+    const fileSize = file.file_size || 0;
     
     // Import the logFileDownload function
     const { logFileDownload } = require('./auth');
     logFileDownload(file.filename, user, `${Math.round(fileSize / 1024)} KB`);
 
-    // Return file buffer as blob
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-    res.send(file.buffer);
+    // Read file from disk and send
+    if (file.file_path && fs.existsSync(file.file_path)) {
+      const fileBuffer = fs.readFileSync(file.file_path);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.send(fileBuffer);
+    } else {
+      res.status(404).json({ error: 'File not found on disk' });
+    }
   } catch (error) {
     console.error('Download error:', error);
     res.status(500).json({ error: 'Failed to download file' });
@@ -278,15 +306,29 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Get file info before deletion
+    const files = await db.getFiles();
+    const file = files.find(f => f.id === id);
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
     // Remove from database
     const removed = await db.removeFile(id);
 
     if (!removed) {
-      return res.status(404).json({ error: 'File not found' });
+      return res.status(500).json({ error: 'Failed to remove file from database' });
+    }
+
+    // Remove file from disk
+    if (file.file_path && fs.existsSync(file.file_path)) {
+      fs.unlinkSync(file.file_path);
+      console.log('🗑️ File removed from disk:', file.file_path);
     }
 
     // Update stats
-    await db.updateStats();
+    await db.updateStats(file);
 
     res.json({ message: 'File deleted successfully' });
   } catch (error) {
@@ -309,24 +351,24 @@ router.get('/stats', async (req, res) => {
     const monthlyStats = {}
 
     files.forEach(file => {
-      // Calculate storage (assuming average file size of 100KB for demo)
-      totalStorage += file.size || 102400 // 100KB default
+      // Calculate storage using actual file size
+      totalStorage += file.file_size || 0
 
       // File type stats
-      const fileType = file.file_type || file.fileType || 'Unknown'
+      const fileType = file.file_type || 'Unknown'
       fileTypeStats[fileType] = (fileTypeStats[fileType] || 0) + 1
 
       // Client code stats
-      const clientCode = file.client_code || file.clientCode || 'Unknown'
+      const clientCode = file.client_code || 'Unknown'
       clientCodeStats[clientCode] = (clientCodeStats[clientCode] || 0) + 1
 
       // Asset type stats
-      const assetType = file.asset_type || file.assetType || 'Unknown'
+      const assetType = file.asset_type || 'Unknown'
       assetTypeStats[assetType] = (assetTypeStats[assetType] || 0) + 1
 
       // Monthly stats
-      if (file.file_date || file.fileDate) {
-        const dateStr = file.file_date || file.fileDate;
+      if (file.file_date) {
+        const dateStr = file.file_date;
         const month = dateStr.substring(0, 7) // YYYY-MM
         monthlyStats[month] = (monthlyStats[month] || 0) + 1
       }
@@ -360,7 +402,11 @@ router.get('/stats', async (req, res) => {
 // Get database status
 router.get('/db-status', async (req, res) => {
   try {
-    const status = db.oneDriveDb.getStatus();
+    const status = {
+      type: 'Local JSON Database',
+      status: 'Connected',
+      timestamp: new Date().toISOString()
+    };
     res.json(status);
   } catch (error) {
     console.error('Database status error:', error);
@@ -369,8 +415,6 @@ router.get('/db-status', async (req, res) => {
 });
 
 // GET /options - Return fileTypes, assetTypes, clientCodes
-const fs = require('fs');
-const path = require('path');
 
 router.get('/options', (req, res) => {
   try {

@@ -143,6 +143,7 @@ class Database {
   }
 
   addFile(fileData) {
+    console.log('📁 Database.addFile called with:', fileData);
     return this.addLocalFile(fileData);
   }
 
