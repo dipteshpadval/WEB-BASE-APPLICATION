@@ -69,6 +69,33 @@ export default function FileList() {
     }
   }
 
+  const handleBulkDownload = async (mode: 'merge' | 'zip') => {
+    try {
+      // Map UI filters to API filters
+      const params: any = {}
+      if (filters.assetType) params.assetType = filters.assetType
+      if (filters.clientCode && filters.clientCode !== 'All Client Codes') params.clientCode = filters.clientCode
+      if (filters.fileDateFrom) params.startDate = filters.fileDateFrom
+      if (filters.fileDateTo) params.endDate = filters.fileDateTo
+      // The UI "File Type" here is extension filter; backend expects logical file_type so we omit
+      params.mode = mode
+
+      const blob = await filesAPI.bulkDownload(params)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = mode === 'zip' ? 'files.zip' : 'files_consolidated.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast.success('Bulk download started')
+    } catch (error: any) {
+      console.error('Bulk download error:', error)
+      toast.error(error.response?.data?.error || 'Failed to prepare bulk download')
+    }
+  }
+
   const clearFilters = () => {
     setFilters({
       fileDateFrom: '',
@@ -150,7 +177,7 @@ export default function FileList() {
             </div>
           </div>
 
-          {/* Quick Filter Buttons */}
+          {/* Quick Actions */}
           <div className="flex flex-wrap gap-2 mb-6">
             <button className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors">
               Today's Files
@@ -164,6 +191,22 @@ export default function FileList() {
             >
               Clear Filters
             </button>
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={() => handleBulkDownload('merge')}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                title="Download merged Excel"
+              >
+                Download Consolidated (.xlsx)
+              </button>
+              <button
+                onClick={() => handleBulkDownload('zip')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                title="Download as separate files (ZIP)"
+              >
+                Download ZIP
+              </button>
+            </div>
           </div>
 
           {/* Detailed Filters */}

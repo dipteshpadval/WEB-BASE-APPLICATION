@@ -122,15 +122,12 @@ app.use((err, req, res, next) => {
 // Start server
 const startServer = async () => {
   try {
-    // Initialize database (requires MongoDB connection)
+    // Initialize database (now local/OneDrive; no MongoDB connection)
     await db.initialize();
-    
-    // Also connect to MongoDB through the separate connection
-    dbConnection = await connectDB();
+    dbConnection = null;
     
     app.listen(PORT, '0.0.0.0', () => {
-      console.log('✅ MongoDB database initialized');
-      console.log('✅ MongoDB Atlas Connected');
+      console.log('✅ Local/OneDrive storage initialized');
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Network access: http://192.168.29.211:${PORT}`);

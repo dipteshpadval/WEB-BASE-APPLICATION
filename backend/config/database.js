@@ -3,8 +3,10 @@ const path = require('path');
 const mongoose = require('mongoose');
 const File = require('../models/File');
 
-// Production database path
-const PRODUCTION_DB_PATH = path.join(__dirname, '../data');
+// Local/OneDrive database path (prefer env, then OneDrive path, then ./data)
+const PRODUCTION_DB_PATH = process.env.LOCAL_DB_PATH ||
+  'C:/Users/Lenovo/OneDrive - CERTITUDE FIN TECH SERVICES PRIVATE LIMITED/AUTOMATION/DATABASE/web base/DATA' ||
+  path.join(__dirname, '../data');
 
 // MongoDB connection
 const connectMongoDB = async () => {
@@ -111,21 +113,9 @@ class Database {
   }
 
   async initialize() {
-    console.log('✅ Connecting to MongoDB as primary database...');
+    console.log('✅ Using local/OneDrive storage for database');
     this.ensureDataDirectory();
-    
-    // Connect to MongoDB as primary database
-    this.mongoConnection = await connectMongoDB();
-    if (!this.mongoConnection) {
-      console.error('❌ MongoDB connection failed');
-      console.error('❌ Please whitelist your server IP in MongoDB Atlas');
-      console.error('❌ Or set MONGODB_URI environment variable');
-      console.error('❌ Server will start but file operations will fail');
-      // Don't throw error, let server start
-    } else {
-      console.log('✅ MongoDB connected successfully');
-    }
-    
+    this.mongoConnection = null;
     return true;
   }
 
@@ -141,11 +131,11 @@ class Database {
 
   async getFiles() {
     try {
-      const files = await File.find({}).sort({ uploaded_at: -1 });
-      console.log(`✅ Retrieved ${files.length} files from MongoDB`);
-      return files;
+      const files = this.getLocalFiles();
+      console.log(`✅ Retrieved ${files.length} files from local storage`);
+      return files.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
     } catch (error) {
-      console.error('❌ Error retrieving files from MongoDB:', error);
+      console.error('❌ Error retrieving files from local storage:', error);
       return [];
     }
   }
@@ -184,15 +174,30 @@ class Database {
         return false;
       }
 
-      // Create new file document in MongoDB
-      const newFile = new File(fileData);
-      console.log('📄 File document created, attempting to save...');
-      
-      const savedFile = await newFile.save();
-      console.log('✅ File saved to MongoDB successfully with ID:', savedFile._id);
+      // Persist file to disk and save metadata locally
+      this.ensureDataDirectory();
+      const uploadsDir = path.join(PRODUCTION_DB_PATH, 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const safeName = fileData.filename.replace(/[^a-zA-Z0-9._ -]+/g, '_');
+      const diskFilename = `${fileData.id}_${safeName}`;
+      const fullPath = path.join(uploadsDir, diskFilename);
+      fs.writeFileSync(fullPath, fileData.file_buffer);
+
+      const metadata = { ...fileData, file_path: fullPath };
+      delete metadata.file_buffer;
+
+      const saved = this.addLocalFile(metadata);
+      if (!saved) {
+        console.error('❌ Failed to write metadata to local storage');
+        return false;
+      }
+      console.log('✅ File saved to local storage at:', fullPath);
       return true;
     } catch (error) {
-      console.error('❌ Error saving file to MongoDB:', error.message);
+      console.error('❌ Error saving file to local storage:', error.message);
       console.error('❌ Error details:', {
         name: error.name,
         code: error.code,
@@ -204,16 +209,14 @@ class Database {
 
   async removeFile(fileId) {
     try {
-      const result = await File.deleteOne({ id: fileId });
-      if (result.deletedCount > 0) {
-        console.log('✅ File removed from MongoDB successfully');
-        return true;
-      } else {
-        console.log('⚠️ File not found in MongoDB');
-        return false;
+      const files = this.getLocalFiles();
+      const file = files.find(f => f.id === fileId);
+      if (file && file.file_path && fs.existsSync(file.file_path)) {
+        try { fs.unlinkSync(file.file_path); } catch {}
       }
+      return this.removeLocalFile(fileId);
     } catch (error) {
-      console.error('❌ Error removing file from MongoDB:', error);
+      console.error('❌ Error removing local file:', error);
       return false;
     }
   }

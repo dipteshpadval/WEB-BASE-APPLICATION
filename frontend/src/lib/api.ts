@@ -137,6 +137,14 @@ export const filesAPI = {
   delete: async (fileId: string): Promise<void> => {
     await api.delete(`/files/${fileId}`)
   },
+
+  bulkDownload: async (params: { fileType?: string; assetType?: string; clientCode?: string; startDate?: string; endDate?: string; mode?: 'merge' | 'zip' }): Promise<Blob> => {
+    const response = await api.get('/files/bulk-download', {
+      params,
+      responseType: 'blob'
+    })
+    return response.data
+  }
 }
 
 export const authAPI = {

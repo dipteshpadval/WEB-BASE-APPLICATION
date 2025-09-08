@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
+const JSZip = require('jszip');
 const { body, query, validationResult } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
@@ -152,7 +153,7 @@ router.post('/upload',
         buffer_size: fileData.file_buffer ? fileData.file_buffer.length : 0
       });
 
-      // Save to database
+      // Save to storage (now local/OneDrive via database module)
       console.log('💾 Attempting to save file to database...');
       console.log('📁 File size:', req.file.size, 'bytes');
       
@@ -294,6 +295,106 @@ router.get('/',
   }
 );
 
+// Bulk download files (merge into single Excel or as ZIP)
+router.get('/bulk-download', async (req, res) => {
+  try {
+    const { fileType, assetType, clientCode, startDate, endDate, mode = 'merge' } = req.query;
+
+    // Fetch and filter files similar to list endpoint
+    let filteredFiles = [...(await db.getFiles())];
+
+    if (fileType) {
+      filteredFiles = filteredFiles.filter(file => file.file_type === fileType);
+    }
+    if (assetType) {
+      filteredFiles = filteredFiles.filter(file => file.asset_type === assetType);
+    }
+    if (clientCode) {
+      filteredFiles = filteredFiles.filter(file => file.client_code === clientCode);
+    }
+    if (startDate) {
+      filteredFiles = filteredFiles.filter(file => file.file_date >= startDate);
+    }
+    if (endDate) {
+      filteredFiles = filteredFiles.filter(file => file.file_date <= endDate);
+    }
+
+    if (!filteredFiles.length) {
+      return res.status(404).json({ error: 'No files found for given filters' });
+    }
+
+    // Default filename parts
+    const safe = (v) => (v ? String(v).replace(/[^a-zA-Z0-9_-]+/g, '-') : 'all');
+    const filenameBase = `files_${safe(fileType)}_${safe(assetType)}_${safe(clientCode)}_${safe(startDate)}_to_${safe(endDate)}`;
+
+    if (mode === 'zip') {
+      const zip = new JSZip();
+      for (const f of filteredFiles) {
+        if (f.file_buffer) {
+          zip.file(f.filename, f.file_buffer);
+        }
+      }
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.zip"`);
+      return res.send(zipBuffer);
+    }
+
+    // Merge into a single worksheet called "Consolidated"
+    const mergedWorkbook = new ExcelJS.Workbook();
+    mergedWorkbook.creator = 'File Manager';
+    mergedWorkbook.created = new Date();
+    const consolidated = mergedWorkbook.addWorksheet('Consolidated');
+
+    let wroteHeader = false;
+
+    for (const f of filteredFiles) {
+      if (!f.file_buffer) continue;
+      try {
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(f.file_buffer);
+
+        for (const ws of wb.worksheets) {
+          if (ws.rowCount === 0) continue;
+
+          // Header row (first row)
+          const headerRow = ws.getRow(1);
+          const headerValues = Array.isArray(headerRow.values) ? headerRow.values : [];
+
+          if (!wroteHeader) {
+            const newHeader = consolidated.addRow(headerValues);
+            newHeader.font = { bold: true };
+            wroteHeader = true;
+          } else {
+            // Separate sections with a blank row and repeat header for clarity
+            consolidated.addRow([]);
+            const repeatedHeader = consolidated.addRow(headerValues);
+            repeatedHeader.font = { bold: true };
+          }
+
+          // Append data rows
+          for (let r = 2; r <= ws.rowCount; r++) {
+            const srcRow = ws.getRow(r);
+            const values = Array.isArray(srcRow.values) ? srcRow.values : [];
+            consolidated.addRow(values);
+          }
+        }
+      } catch (e) {
+        console.warn('Skipping file during merge (unable to parse):', f.filename, e.message);
+        continue;
+      }
+    }
+
+    const buffer = await mergedWorkbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}_consolidated.xlsx"`);
+    return res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('Bulk download error:', error);
+    res.status(500).json({ error: 'Failed to prepare bulk download' });
+  }
+});
+
 // Download file
 router.get('/:id/download', async (req, res) => {
   try {
@@ -315,14 +416,16 @@ router.get('/:id/download', async (req, res) => {
     const { logFileDownload } = require('./auth');
     logFileDownload(file.filename, user, `${Math.round(fileSize / 1024)} KB`);
 
-    // Send file buffer from MongoDB
-    if (file.file_buffer) {
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-      res.send(file.file_buffer);
-    } else {
-      res.status(404).json({ error: 'File buffer not found in database' });
+    // Serve from disk if available; else from buffer
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    if (file.file_path && fs.existsSync(file.file_path)) {
+      return fs.createReadStream(file.file_path).pipe(res);
     }
+    if (file.file_buffer) {
+      return res.send(file.file_buffer);
+    }
+    return res.status(404).json({ error: 'File not found in local storage' });
   } catch (error) {
     console.error('Download error:', error);
     res.status(500).json({ error: 'Failed to download file' });
